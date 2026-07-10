@@ -35,11 +35,10 @@ ENV CPV_TORCH_CHECKPOINT_PATH=/app/model.pt
 
 EXPOSE 8000
 
-# NOTE (deploy-time, not build-time): on the VPS this container joins the
-# existing Traefik reverse-proxy network (e.g. `docker network connect
-# traefik-public <container>` or via `docker-compose` `networks:` +
-# Traefik labels for TLS/routing). Not configured here since it depends on
-# the target host's Traefik setup.
+# NOTE (deploy-time, not build-time): this container is published via a
+# Cloudflare Tunnel, not by publishing host ports. It stays on a private
+# Docker network alongside the `cloudflared` connector -- see
+# serving/deploy/docker-compose.yml and serving/deploy/README.md.
 
 WORKDIR /app/serving
 CMD ["uvicorn", "app:app", "--host", "0.0.0.0", "--port", "8000"]

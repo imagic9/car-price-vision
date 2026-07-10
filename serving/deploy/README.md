@@ -1,8 +1,8 @@
 # Deployment runbook — car-price-vision demo
 
 Public demo target: **https://aetherkin.space** (apex domain), served via a
-**Cloudflare Tunnel** to a FastAPI container on the VPS `srv1248068`. No
-Traefik involvement, no open inbound ports on the VPS for this stack.
+**Cloudflare Tunnel** to a FastAPI container on the deployment VPS. No
+reverse-proxy involvement, no open inbound ports on the VPS for this stack.
 
 The model does not exist yet. The site goes live now as a "coming soon"
 placeholder (see `../static/index.html`); the FastAPI app runs and reports
@@ -38,8 +38,8 @@ registration (Namecheap) and email (forwarding via `registrar-servers.com`).
    the Cloudflare DNS dashboard before switching nameservers -- otherwise
    inbound mail forwarding and SPF validation for `aetherkin.space` will
    silently stop working.
-3. The current apex **A record** (`aetherkin.space -> 194.48.203.104`,
-   the existing Tilda site) will be **replaced by the tunnel** in step 2, so
+3. The current apex **A record** (the existing parked/placeholder site)
+   will be **replaced by the tunnel** in step 2, so
    it is safe to delete it (or leave it and let the tunnel's CNAME/A record
    from step 2 override it -- either way, don't leave both pointing at
    conflicting targets).
@@ -71,7 +71,7 @@ registration (Namecheap) and email (forwarding via `registrar-servers.com`).
 6. Save. Cloudflare creates the corresponding DNS record in the zone from
    step 1 automatically.
 
-## 3. Deploy on the VPS (`srv1248068`)
+## 3. Deploy on the VPS
 
 ```bash
 # Clone (first time) or pull (subsequent deploys)
@@ -136,8 +136,8 @@ upload UI on next page load (it checks `/health` on load).
 ## 6. Operational safety
 
 This stack is fully isolated on its own Docker network (`car-net`) and does
-not join, depend on, reference, or otherwise interact with the shared
-Traefik/n8n containers already running on `srv1248068`. `car-price-api`
+not join, depend on, reference, or otherwise interact with any other
+containers already running on the host. `car-price-api`
 does not publish any host port (`expose`, not `ports`), so the only way in
 is through the Cloudflare Tunnel. Deploying, restarting, or tearing down
 this stack (`docker compose up/down/restart` in this directory) must never

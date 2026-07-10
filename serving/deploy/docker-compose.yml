@@ -11,8 +11,8 @@
 #     dashboard, not here -- see README.md in this directory.
 #
 # This stack is intentionally self-contained: it does not join, depend on,
-# or otherwise touch the shared Traefik/n8n stack that also runs on this
-# VPS. See README.md "Operational safety".
+# or otherwise touch any other containers that may also run on the host.
+# See README.md "Operational safety".
 #
 # Usage (from this directory):
 #   cp .env.example .env   # then paste your tunnel token into .env

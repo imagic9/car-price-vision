@@ -151,7 +151,7 @@ uvicorn serving.app:app --reload --app-dir serving
 - **Phase 2 — Baseline.** Frozen-backbone training (Stage 1), first metrics, backbone comparison (`notebooks/02_baseline.ipynb`, `03_finetune.ipynb`).
 - **Phase 3 — Fine-tuning & interpretability.** Full two-stage training, Grad-CAM gallery, brand-shortcut diagnostics, unseen-models holdout evaluation (`notebooks/04_interpretability.ipynb`).
 - **Phase 4 — Export & serving.** Export best checkpoint to ONNX, wire up `serving/app.py`, containerize.
-- **Phase 5 — Deploy.** Ship the FastAPI+ONNX-CPU demo to a VPS behind the existing Traefik reverse proxy.
+- **Phase 5 — Deploy.** Ship the FastAPI+ONNX-CPU demo to a VPS, published via a Cloudflare Tunnel (no open inbound ports) — see `serving/deploy/`.
 
 ## License / Dataset Note
 
