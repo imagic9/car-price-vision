@@ -1,0 +1,8 @@
+# Runtime-only dependencies for the serving container (kept minimal /
+# CPU-only for a small VPS deploy footprint -- no torch training deps).
+fastapi>=0.104
+uvicorn[standard]>=0.24
+onnxruntime>=1.16
+pillow>=10.0
+numpy>=1.24
+python-multipart>=0.0.6

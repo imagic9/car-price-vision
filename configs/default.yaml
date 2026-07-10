@@ -1,0 +1,60 @@
+# Default configuration for car-price-vision
+# Every field here is read by src/car_price_vision/utils.py:load_config
+# and consumed by train.py / eval.py. Override via a copy of this file
+# and --config path/to/your.yaml, or by editing in place.
+
+seed: 42
+
+paths:
+  # TODO(phase 1): point data_root at the DVM-CAR extraction directory on `rtx`.
+  data_root: data/dvm-car
+  # TODO(phase 1): produced by scripts/build_manifest.py from raw DVM-CAR metadata.
+  manifest_csv: data/manifest.csv
+  out_dir: outputs/default_run
+  checkpoint_dir: checkpoints/default_run
+  log_dir: outputs/default_run/logs
+
+data:
+  img_size: 224
+  # MVP subset for fast iteration on partial data / before full DVM-CAR is staged.
+  # TODO(phase 2): raise or remove once training on `rtx` with full dataset.
+  subset_size: 80000
+  num_workers: 8
+  # split strategy: "by_advert" (random, time-aware) or "by_model" (leakage-safe,
+  # holds out entire car models). See src/car_price_vision/data/splits.py
+  split_mode: by_advert
+  holdout_models_frac: 0.1
+  val_frac: 0.1
+  test_frac: 0.1
+
+model:
+  # one of: convnext_tiny | efficientnet_v2_s | vit_b_16
+  backbone: convnext_tiny
+  pretrained: true
+  head_hidden_dim: 256
+  head_dropout: 0.2
+
+loss:
+  huber_delta: 1.0
+  weight_year: 1.0
+  weight_price: 1.0
+
+train:
+  batch_size: 64
+  # Stage 1: backbone frozen, only heads trained (fast, stabilizes heads).
+  stage1:
+    epochs: 5
+    lr: 1.0e-3
+  # Stage 2: unfreeze last backbone blocks, fine-tune end-to-end at low lr.
+  stage2:
+    epochs: 15
+    lr: 1.0e-4
+    unfreeze_last_n_blocks: 2
+  weight_decay: 1.0e-4
+  grad_clip_norm: 1.0
+  amp: true
+  checkpoint_every_epochs: 1
+  log_every_steps: 50
+
+eval:
+  batch_size: 128
