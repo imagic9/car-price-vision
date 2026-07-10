@@ -1,0 +1,60 @@
+# car-price-vision demo deployment.
+#
+# Two services, fully isolated on their own bridge network (`car-net`):
+#   - car-price-api: the FastAPI serving container (see ../Dockerfile). No
+#     host ports are published -- it is only reachable from other containers
+#     on car-net (i.e. cloudflared).
+#   - cloudflared: Cloudflare Tunnel connector. Publishes the app at the
+#     apex domain (aetherkin.space) with NO open inbound ports on the VPS.
+#     The public-hostname -> local-service mapping (aetherkin.space ->
+#     http://car-price-api:8000) is configured in the Cloudflare Zero Trust
+#     dashboard, not here -- see README.md in this directory.
+#
+# This stack is intentionally self-contained: it does not join, depend on,
+# or otherwise touch the shared Traefik/n8n stack that also runs on this
+# VPS. See README.md "Operational safety".
+#
+# Usage (from this directory):
+#   cp .env.example .env   # then paste your tunnel token into .env
+#   docker compose up -d --build
+
+services:
+  car-price-api:
+    build:
+      context: ../..
+      dockerfile: serving/Dockerfile
+    container_name: car-price-api
+    restart: unless-stopped
+    expose:
+      - "8000"
+    volumes:
+      # Read-only mount for the exported model artifact(s), added later in
+      # Phase 5. The app starts and reports healthy with this directory
+      # empty -- see serving/app.py's graceful "no model loaded" handling.
+      - ../../models:/models:ro
+    environment:
+      # NOTE: these are the actual env vars serving/app.py reads (see
+      # ONNX_MODEL_PATH / TORCH_CHECKPOINT_PATH in app.py). Point them at the
+      # read-only /models mount above so a future `models/model.onnx` (and/or
+      # `models/model.pt` for Grad-CAM) on the host is picked up automatically
+      # on container restart -- no image rebuild needed.
+      - CPV_ONNX_MODEL_PATH=/models/model.onnx
+      - CPV_TORCH_CHECKPOINT_PATH=/models/model.pt
+    networks:
+      - car-net
+
+  cloudflared:
+    image: cloudflare/cloudflared:latest
+    container_name: car-price-cloudflared
+    restart: unless-stopped
+    command: tunnel --no-autoupdate run
+    environment:
+      - TUNNEL_TOKEN=${TUNNEL_TOKEN:?set TUNNEL_TOKEN in .env}
+    depends_on:
+      - car-price-api
+    networks:
+      - car-net
+
+networks:
+  car-net:
+    driver: bridge

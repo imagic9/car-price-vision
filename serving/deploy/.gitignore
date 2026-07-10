@@ -1,0 +1,8 @@
+# Real tunnel token -- never commit. Copy .env.example to .env instead.
+.env
+
+# Cloudflare tunnel credential files (if a cert-based tunnel is ever used
+# instead of a token-based one) and any other local secrets.
+*.pem
+*credentials*.json
+cert.json

@@ -142,7 +142,7 @@ python -m car_price_vision.eval --config configs/default.yaml \
 uvicorn serving.app:app --reload --app-dir serving
 ```
 
-**Live demo:** coming soon (FastAPI on VPS).
+**Live demo:** [https://aetherkin.space](https://aetherkin.space) (coming soon — FastAPI on VPS, currently a placeholder page while the model is in training).
 
 ## Roadmap
 
