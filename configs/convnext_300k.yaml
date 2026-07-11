@@ -1,0 +1,58 @@
+# ConvNeXt-Tiny on a 300k-image subset (scale-up of default.yaml's 80k MVP).
+# Same recipe/hyperparameters as default.yaml — only subset_size and output
+# paths differ, so results are directly comparable to the 80k baseline.
+
+seed: 42
+
+paths:
+  data_root: /data/car-price-vision
+  manifest_csv: /data/car-price-vision/manifest.csv
+  out_dir: /data/car-price-vision/outputs/convnext_300k
+  checkpoint_dir: /data/car-price-vision/checkpoints/convnext_300k
+  log_dir: /data/car-price-vision/outputs/convnext_300k/logs
+
+data:
+  img_size: 224
+  subset_size: 300000
+  num_workers: 8
+  split_mode: by_model
+  holdout_models_frac: 0.1
+  val_frac: 0.1
+  test_frac: 0.1
+
+# Same full-manifest standardization constants as default.yaml (they are
+# manifest-wide, not subset-dependent) — see that file for the inversion math.
+target_norm:
+  year_mean: 2012.3723
+  year_std: 4.4677
+  log_price_mean: 9.0403
+  log_price_std: 0.9975
+
+model:
+  backbone: convnext_tiny
+  pretrained: true
+  head_hidden_dim: 256
+  head_dropout: 0.2
+
+loss:
+  huber_delta: 1.0
+  weight_year: 1.0
+  weight_price: 1.0
+
+train:
+  batch_size: 64
+  stage1:
+    epochs: 5
+    lr: 1.0e-3
+  stage2:
+    epochs: 15
+    lr: 1.0e-4
+    unfreeze_last_n_blocks: 2
+  weight_decay: 1.0e-4
+  grad_clip_norm: 1.0
+  amp: true
+  checkpoint_every_epochs: 1
+  log_every_steps: 50
+
+eval:
+  batch_size: 128
