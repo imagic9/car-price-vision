@@ -13,7 +13,12 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
     zlib1g \
     && rm -rf /var/lib/apt/lists/*
 
-# Install serving-only runtime deps first for better layer caching.
+# Torch + torchvision (CPU wheels) power the Grad-CAM backend
+# (interpret/gradcam.py needs autograd, which ONNX Runtime can't provide).
+# Installed as its own layer since it's large and rarely changes.
+RUN pip install --no-cache-dir torch torchvision --index-url https://download.pytorch.org/whl/cpu
+
+# Install serving-only runtime deps (fastapi, onnxruntime, pillow, ...).
 COPY serving/requirements.txt /app/serving/requirements.txt
 RUN pip install --no-cache-dir -r /app/serving/requirements.txt
 
