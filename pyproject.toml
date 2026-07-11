@@ -24,11 +24,15 @@ dependencies = [
 ]
 
 [project.optional-dependencies]
-serving = ["fastapi>=0.104", "uvicorn>=0.24", "onnx>=1.15", "onnxruntime>=1.16"]
+serving = ["fastapi>=0.104", "uvicorn>=0.24", "onnx>=1.15", "onnxruntime>=1.16", "httpx>=0.25"]
 notebooks = ["jupyter>=1.0"]
+test = ["pytest>=7.4"]
 
 [tool.setuptools.packages.find]
 where = ["src"]
 
 [tool.setuptools.package-dir]
 "" = "src"
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]

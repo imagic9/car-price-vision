@@ -19,3 +19,7 @@ fastapi>=0.104
 uvicorn>=0.24
 onnx>=1.15
 onnxruntime>=1.16
+httpx>=0.25
+
+# Tests (see tests/, or pyproject.toml's [project.optional-dependencies].test)
+pytest>=7.4
