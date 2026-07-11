@@ -17,12 +17,13 @@ env/
 # Jupyter
 .ipynb_checkpoints/
 
-# Project data & artifacts
-data/
-checkpoints/
-outputs/
-runs/
-wandb/
+# Project data & artifacts (repo-root-anchored so they don't match the
+# src/car_price_vision/data source package)
+/data/
+/checkpoints/
+/outputs/
+/runs/
+/wandb/
 *.pt
 *.pth
 *.onnx
