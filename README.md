@@ -17,7 +17,7 @@ This is framed deliberately as **price estimation**, not "how premium does this 
 
 ## Data
 
-**Primary dataset: [DVM-CAR](https://deepvisualmarketing.github.io/)** (Deep Visual Marketing) — a large-scale UK car marketplace dataset with ~1.45M images across ~900 car models, paired with structured metadata (price, year, model, brand, advert date, and more).
+**Primary dataset: [DVM-CAR](https://deepvisualmarketing.github.io/)** (Deep Visual Marketing) — a large-scale UK car marketplace dataset. After joining `Ad_table` with the image index and filtering, the manifest resolves to **1,445,416 usable images** (from ~1.45M raw) across **84 brands**, **858 models**, and **246,175 adverts**, with a year median of **2013** and a price median of **£8,700**. The full manifest is used for EDA and splitting; the model reported below was trained on an **80,000-image MVP subset** for turnaround-time reasons.
 
 > **License note:** DVM-CAR is distributed for **academic, non-commercial research use only**. This repository's MIT license covers the *code* in this repo; it does **not** extend to the dataset, any derived images, or model weights trained on it. Do not use the dataset or derived artifacts commercially. See the dataset's own site for the exact terms.
 
@@ -38,11 +38,12 @@ Both datasets are consumed through a single **unified manifest CSV** (see `scrip
 
 - **Backbone**: one pretrained ImageNet backbone (default `convnext_tiny`; `efficientnet_v2_s` and `vit_b_16` also supported), classifier head stripped, pooled features shared by both heads.
 - **Heads**: two small MLP regression heads — one for `year`, one for `log(price_gbp)`.
-- **Loss**: weighted sum of Huber loss on each head (`w_year * L_year + w_price * L_price`), robust to outlier listings.
+- **Loss**: weighted sum of Huber loss on each head (`w_year * L_year + w_price * L_price`), computed on z-standardized targets, robust to outlier listings.
 - **Two-stage transfer learning**:
-  1. **Stage 1** — freeze the backbone, train only the heads (fast convergence, stable initialization).
-  2. **Stage 2** — unfreeze the last few backbone blocks, fine-tune end-to-end at a lower learning rate.
-- **Splits**: leakage-safe by construction — see `src/car_price_vision/data/splits.py`. Two modes: `by_advert` (realistic deployment scenario) and `by_model` (strict unseen-models holdout, used specifically to test generalization beyond memorized model/brand priors).
+  1. **Stage 1** — freeze the backbone, train only the heads (5 epochs; fast convergence, stable initialization).
+  2. **Stage 2** — unfreeze the last few backbone blocks, fine-tune end-to-end at a lower learning rate (15 epochs).
+- **Splits**: leakage-safe by construction — see `src/car_price_vision/data/splits.py`, grouped by advert id so no advert's images leak across splits. Two modes: `by_advert` (realistic deployment scenario) and `by_model` (strict unseen-models holdout — 10% of models held out entirely, used specifically to test generalization beyond memorized model/brand priors).
+- **Deployed run**: `convnext_tiny`, 224×224 input, AdamW optimizer, bf16 automatic mixed precision, trained on the 80,000-image MVP subset on an NVIDIA RTX PRO 6000 Blackwell in **~8 minutes**.
 
 ## Metrics
 
@@ -56,31 +57,49 @@ Reported on val / test / unseen-models holdout:
 | R² | both | coefficient of determination |
 | within-brand price correlation | price | Pearson correlation of predicted vs. true price, computed *within* each brand — see [Limitations](#limitations) |
 
-Result tables are intentionally left as `TBD` in this repository until real training runs are complete — no fabricated numbers.
+Deployed model is `convnext_tiny`, trained per the [Approach](#approach) above.
 
 | Split | MAE-years | MAE-log | MAPE | R² (year) | R² (price) | within-brand corr |
 |---|---|---|---|---|---|---|
-| val | TBD | TBD | TBD | TBD | TBD | TBD |
-| test | TBD | TBD | TBD | TBD | TBD | TBD |
-| unseen-models holdout | TBD | TBD | TBD | TBD | TBD | TBD |
+| val | 1.62 | 0.332 | 35.9% | 0.764 | 0.800 | 0.714 |
+| test | 1.61 | 0.335 | 35.4% | 0.763 | 0.794 | 0.631 |
+| unseen-models holdout | 1.94 | 0.394 | 44.0% | 0.651 | 0.712 | 0.472 |
+
+## Results
+
+**Backbone comparison (Phase 3).** `efficientnet_v2_s`, trained under the identical data, splits, and two-stage schedule, scored marginally better on point metrics (test MAE-years 1.54, MAPE 34.9%, R² price 0.800, within-brand corr 0.662) — but the gap is within run-to-run noise. `convnext_tiny` was chosen as the deployed model for comparable accuracy with a cleaner convolutional Grad-CAM target and lower CPU-inference latency.
+
+**Interpretability finding (Phase 4).** Grad-CAM for the price head concentrates on the wheels/alloys and body proportions rather than the badge/grille, and the within-brand predicted-vs-true price correlation stays clearly positive (0.631 on test, 0.472 on unseen-models holdout). Together this is evidence — not proof — that the model is picking up genuine within-brand price signal rather than relying purely on a brand-lookup shortcut; see [Limitations](#limitations) for what this does *not* rule out.
+
+**Sample live predictions** (through the deployed API):
+
+| Car | Actual | Predicted |
+|---|---|---|
+| Peugeot 108 (2017) | 2017, £8,700 | 2017, £8,150 |
+| Porsche Macan (2018) | 2018, £53,000 | 2018, £32,060 |
+| Ford Fiesta (2005) | 2005, £1,495 | 2003, £830 |
+
+The Porsche Macan case is illustrative of a systematic pattern (see [Limitations](#limitations)): the model correctly recognizes an "expensive-looking" car and gets the year right, but regresses the price toward the mean, understating high-price-tail listings.
 
 ## Interpretability
 
 `src/car_price_vision/interpret/gradcam.py` implements **Grad-CAM** from scratch (forward/backward hooks on a target conv layer — no dependency on the external `grad-cam` package), targeting the last stage of the CNN backbone by default. It's used to:
 
 - Visualize which pixels drive the `price` prediction for individual cars (`notebooks/04_interpretability.ipynb`).
-- Check whether attention concentrates on the badge/grille (a shortcut) vs. spreads across body panels and proportions (genuine visual reasoning).
+- Check whether attention concentrates on the badge/grille (a shortcut) vs. spreads across body panels and proportions (genuine visual reasoning). In practice, on the deployed ConvNeXt-Tiny model, attention concentrates on wheels/alloys and body proportions — see [Results](#results).
 - Support an optional logo-mask ablation: mask the badge/grille region and measure the prediction shift.
 
 ## Limitations
 
 Documented honestly, up front, rather than discovered at the end:
 
-1. **Brand/logo shortcut.** The model may learn to read the badge or grille shape and effectively predict price via "which brand is this" rather than genuine design/condition cues. Mitigations built into this repo: Grad-CAM on the badge region, within-brand price correlation as a diagnostic (if it collapses toward zero while overall correlation looks strong, that's a shortcut signal), and an optional logo-mask ablation.
+1. **Brand/logo shortcut.** The model may learn to read the badge or grille shape and effectively predict price via "which brand is this" rather than genuine design/condition cues. Mitigations built into this repo: Grad-CAM on the badge region, within-brand price correlation as a diagnostic (if it collapses toward zero while overall correlation looks strong, that's a shortcut signal), and an optional logo-mask ablation. The observed within-brand correlations (0.631 test / 0.472 holdout, both clearly above zero) *mitigate* this concern but do not fully eliminate it — a real, if weaker, shortcut component could still be present underneath a genuine signal.
 2. **Price ≠ perceived premium-ness.** The price target is a market-observed advertised price (UK classifieds), which reflects supply/demand, mileage, condition, and seller behavior — not a subjective "how upscale does this car look" judgment. This is framed strictly as *price estimation*, not aesthetic or brand-prestige scoring.
 3. **UK-market bias.** DVM-CAR reflects UK second-hand car market pricing and vehicle mix; predictions should not be assumed to transfer to other markets (LHD/RHD, different tax regimes, different popular models).
 4. **GBP price inflation over time.** Advertised prices span multiple years, and nominal GBP prices drift upward over time independent of the car itself. `advert_year` is carried through the manifest specifically to allow controlling for this (e.g. as a covariate or via inflation-adjusted price normalization) — full mitigation is a phase 2+ modeling decision, not yet implemented in the MVP loss.
 5. **Photo-only age→price leakage.** A car's visible age (paint condition, wear, wheel style, headlight design era) is itself informative about both `year` and `price` in ways that are legitimate for this task (that's the whole premise) but also means the two heads' errors are correlated — a systematic year-prediction bias will likely show up as a price bias too. Residual analysis by car age is included in the interpretability notebook.
+6. **Generalization gap to unseen models.** MAPE degrades from ~35% on val/test to 44.0% on the unseen-models holdout (R² price 0.794 → 0.712), and within-brand correlation drops from 0.631 to 0.472. The model is meaningfully weaker on car models it has never seen images of, which is expected but should temper confidence in predictions for rare or unusual models.
+7. **High-price-tail underestimation.** The model tends to regress high-value cars toward the mean rather than tracking the full price range — e.g. a Porsche Macan actually listed at £53,000 was predicted at £32,060 (see [Results](#results)). Predictions for premium/luxury vehicles should be treated as directionally correct at best, not as reliable point estimates.
 
 ## Project Structure
 
@@ -142,7 +161,7 @@ python -m car_price_vision.eval --config configs/default.yaml \
 uvicorn serving.app:app --reload --app-dir serving
 ```
 
-**Live demo:** [https://aetherkin.space](https://aetherkin.space) (coming soon — FastAPI on VPS, currently a placeholder page while the model is in training).
+**Live demo:** **[https://aetherkin.space](https://aetherkin.space)** — upload a car photo, get predicted year, price, and a Grad-CAM overlay. Served via FastAPI behind a Cloudflare Tunnel (no open inbound ports); CPU inference (ONNX for the point prediction, PyTorch for the Grad-CAM overlay).
 
 ## Roadmap
 
@@ -151,7 +170,7 @@ uvicorn serving.app:app --reload --app-dir serving
 - **Phase 2 — Baseline.** Frozen-backbone training (Stage 1), first metrics, backbone comparison (`notebooks/02_baseline.ipynb`, `03_finetune.ipynb`).
 - **Phase 3 — Fine-tuning & interpretability.** Full two-stage training, Grad-CAM gallery, brand-shortcut diagnostics, unseen-models holdout evaluation (`notebooks/04_interpretability.ipynb`).
 - **Phase 4 — Export & serving.** Export best checkpoint to ONNX, wire up `serving/app.py`, containerize.
-- **Phase 5 — Deploy.** Ship the FastAPI+ONNX-CPU demo to a VPS, published via a Cloudflare Tunnel (no open inbound ports) — see `serving/deploy/`.
+- **Phase 5 — Deploy.** ✅ Done. FastAPI+ONNX-CPU demo shipped to a VPS, published via a Cloudflare Tunnel (no open inbound ports) — live at [https://aetherkin.space](https://aetherkin.space), see `serving/deploy/`.
 
 ## License / Dataset Note
 
