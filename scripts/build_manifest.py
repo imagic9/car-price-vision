@@ -31,7 +31,9 @@ color        : str    Ad_table.Color
 bodytype     : str    Ad_table.Bodytype
 mileage      : float  Ad_table.Runned_Miles (NaN allowed)
 viewpoint    : int    Image_table.Predicted_viewpoint, or -1 if not merged
-is_front     : bool   True if the image came from images/confirmed_fronts
+is_front     : bool   True if the image is a confirmed front view (either it
+                      came from images/confirmed_fronts, or its basename
+                      appears in that curated set)
 
 Usage:
     python scripts/build_manifest.py \\
@@ -106,17 +108,27 @@ def discover_images(data_root: Path, source: str) -> list[tuple[Path, bool]]:
     """
     results: list[tuple[Path, bool]] = []
 
+    # Basenames of the curated confirmed_fronts set: a resized_DVM image is a
+    # confirmed front view iff its basename appears here. Without this
+    # cross-mark, a resized-only manifest would have is_front=False on every
+    # row even though ~61k of its images ARE confirmed fronts.
+    fronts_dir = data_root / "images" / "confirmed_fronts"
+    front_basenames: set[str] = (
+        {p.name for p in fronts_dir.rglob("*.jpg")} if fronts_dir.exists() else set()
+    )
+    if front_basenames:
+        print(f"[build_manifest] {len(front_basenames)} confirmed_fronts basenames loaded for is_front marking.")
+
     if source in ("resized", "both"):
         resized_dir = data_root / "images" / "resized_DVM"
         if resized_dir.exists():
             print(f"[build_manifest] Walking {resized_dir} ...")
             for p in resized_dir.rglob("*.jpg"):
-                results.append((p.relative_to(data_root), False))
+                results.append((p.relative_to(data_root), p.name in front_basenames))
         else:
             print(f"[build_manifest] WARNING: {resized_dir} does not exist; skipping.")
 
     if source in ("fronts", "both"):
-        fronts_dir = data_root / "images" / "confirmed_fronts"
         if fronts_dir.exists():
             print(f"[build_manifest] Walking {fronts_dir} ...")
             for p in fronts_dir.rglob("*.jpg"):

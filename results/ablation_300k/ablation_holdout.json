@@ -1,0 +1,88 @@
+{
+  "split": "holdout",
+  "n_front_view": 1284,
+  "n_used": 1284,
+  "conditions": {
+    "none": {
+      "n_samples": 1284,
+      "mae_years": 1.5673284322673287,
+      "mape": 36.598495842387905,
+      "r2_price_log": 0.7209502641523657
+    },
+    "badge": {
+      "n_samples": 1284,
+      "mae_years": 1.7198561433691102,
+      "mape": 39.380209922262296,
+      "r2_price_log": 0.6772194298647825
+    },
+    "control": {
+      "n_samples": 1284,
+      "mae_years": 1.5858473733206775,
+      "mape": 37.561234071823826,
+      "r2_price_log": 0.7154800610256931
+    }
+  },
+  "shift_vs_none": {
+    "badge": {
+      "mean_abs_delta_year": 0.7406752109527588,
+      "median_abs_delta_year": 0.5584716796875,
+      "mean_abs_delta_log_price": 0.1707354635000229,
+      "median_abs_delta_log_price": 0.1284623146057129,
+      "frac_price_shift_gt10pct": 0.5817757009345794,
+      "frac_price_shift_gt25pct": 0.23130841121495327
+    },
+    "control": {
+      "mean_abs_delta_year": 0.17760735750198364,
+      "median_abs_delta_year": 0.1396484375,
+      "mean_abs_delta_log_price": 0.040619757026433945,
+      "median_abs_delta_log_price": 0.031171798706054688,
+      "frac_price_shift_gt10pct": 0.06619937694704049,
+      "frac_price_shift_gt25pct": 0.003115264797507788
+    }
+  },
+  "ablation_deltas": {
+    "badge_minus_none": {
+      "mae_years": 0.15252771110178154,
+      "mape": 2.7817140798743907,
+      "r2_price_log": -0.04373083428758329
+    },
+    "control_minus_none": {
+      "mae_years": 0.018518941053348836,
+      "mape": 0.9627382294359208,
+      "r2_price_log": -0.005470203126672679
+    },
+    "badge_vs_control": {
+      "mae_years": 0.1340087700484327,
+      "mape": 1.8189758504384699,
+      "r2_price_log": -0.03826063116091061
+    }
+  },
+  "run_params": {
+    "config": "configs/convnext_300k.yaml",
+    "checkpoint": "/data/car-price-vision/checkpoints/convnext_300k/latest.pt",
+    "backbone_name": "convnext_tiny",
+    "img_size": 224,
+    "max_images": 5000,
+    "badge_box": [
+      0.35,
+      0.45,
+      0.65,
+      0.72
+    ],
+    "control_box": [
+      0.02,
+      0.02,
+      0.32,
+      0.29
+    ],
+    "mask_fill_color": [
+      124,
+      116,
+      104
+    ],
+    "batch_size": 128,
+    "num_workers": 8,
+    "device": "cuda",
+    "seed": 42
+  }
+}
