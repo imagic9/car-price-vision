@@ -45,7 +45,7 @@ Both datasets are consumed through a single **unified manifest CSV** (see `scrip
   1. **Stage 1** — freeze the backbone, train only the heads (5 epochs; fast convergence, stable initialization).
   2. **Stage 2** — unfreeze the last few backbone blocks, fine-tune end-to-end at a lower learning rate (15 epochs).
 - **Splits**: leakage-safe by construction — see `src/car_price_vision/data/splits.py`, grouped by advert id so no advert's images leak across splits. Two modes: `by_advert` (realistic deployment scenario) and `by_model` (strict unseen-models holdout — 10% of models held out entirely, used specifically to test generalization beyond memorized model/brand priors).
-- **Training runs**: `convnext_tiny`, 224×224 input, AdamW optimizer, bf16 automatic mixed precision, on an NVIDIA RTX PRO 6000 Blackwell. Two checkpoints under the identical recipe: an **80,000-image subset** (`configs/default.yaml`, ~8 minutes) and a **300,000-image subset** (`configs/convnext_300k.yaml` — same hyperparameters, only `subset_size` and output paths differ, ~27 minutes). **The 300k checkpoint is what [https://aetherkin.space](https://aetherkin.space) currently serves.**
+- **Training runs**: `convnext_tiny`, 224×224 input, AdamW optimizer, bf16 automatic mixed precision, on an NVIDIA RTX PRO 6000 Blackwell. Two checkpoints under the identical recipe: an **80,000-image subset** (`configs/default.yaml`, ~8 minutes) and a **300,000-image subset** (`configs/convnext_300k.yaml` — same hyperparameters, only `subset_size` and output paths differ, ~27 minutes). **The 300k checkpoint is what [https://cars.pricevision.app](https://cars.pricevision.app) currently serves.**
 
 ## Metrics
 
@@ -59,7 +59,7 @@ Reported on val / test / unseen-models holdout:
 | R² | both | coefficient of determination |
 | within-brand price correlation | price | Pearson correlation of predicted vs. true price, computed *within* each brand — see [Limitations](#limitations) |
 
-Both checkpoints are `convnext_tiny`, trained per the [Approach](#approach) above on identical leakage-safe splits — differing only in how much of the manifest they trained on. **The 300k checkpoint is the one deployed at [https://aetherkin.space](https://aetherkin.space)**; training curves are in `results/convnext_300k/metrics.csv`, full per-brand breakdown in `results/convnext_300k/eval_metrics.json` (80k baseline: `results/convnext/`).
+Both checkpoints are `convnext_tiny`, trained per the [Approach](#approach) above on identical leakage-safe splits — differing only in how much of the manifest they trained on. **The 300k checkpoint is the one deployed at [https://cars.pricevision.app](https://cars.pricevision.app)**; training curves are in `results/convnext_300k/metrics.csv`, full per-brand breakdown in `results/convnext_300k/eval_metrics.json` (80k baseline: `results/convnext/`).
 
 | Subset | Split | MAE-years | MAE-log | MAPE | R² (year) | R² (price) | within-brand corr |
 |---|---|---|---|---|---|---|---|
@@ -202,7 +202,7 @@ python -m car_price_vision.eval --config configs/default.yaml \
 uvicorn serving.app:app --reload --app-dir serving
 ```
 
-**Live demo:** **[https://aetherkin.space](https://aetherkin.space)** — three ways to get a prediction:
+**Live demo:** **[https://cars.pricevision.app](https://cars.pricevision.app)** — three ways to get a prediction:
 
 - **Upload a photo** (drag-and-drop or paste) — get predicted year, price, and a Grad-CAM overlay.
 - **Pick from the gallery** — 144 sample photos, all front-view shots of cars from the **unseen-models holdout split** (car models the network never saw during training). After a prediction, the UI reveals the advert's actual year/price next to it, so you can see how far off the model is on a genuinely unseen model.
@@ -238,7 +238,7 @@ python3 -m pytest tests/ -q
 - **Phase 2 — Baseline.** Frozen-backbone training (Stage 1), first metrics, backbone comparison (`notebooks/02_baseline.ipynb`, `03_finetune.ipynb`).
 - **Phase 3 — Fine-tuning & interpretability.** Full two-stage training, Grad-CAM gallery, brand-shortcut diagnostics, unseen-models holdout evaluation (`notebooks/04_interpretability.ipynb`).
 - **Phase 4 — Export & serving.** Export best checkpoint to ONNX, wire up `serving/app.py`, containerize.
-- **Phase 5 — Deploy.** ✅ Done. FastAPI+ONNX-CPU demo shipped to a VPS, published via a Cloudflare Tunnel (no open inbound ports) — live at [https://aetherkin.space](https://aetherkin.space), see `serving/deploy/`. Since then: scaled the deployed checkpoint from 80k to 300k training images, added gallery/upload/predict-URL modes to the demo UI (see [Setup / Usage](#setup--usage)), and ran a real logo-mask ablation (see [Logo-Mask Ablation](#logo-mask-ablation)) in place of the earlier "optional ablation" placeholder.
+- **Phase 5 — Deploy.** ✅ Done. FastAPI+ONNX-CPU demo shipped to a VPS, published via a Cloudflare Tunnel (no open inbound ports) — live at [https://cars.pricevision.app](https://cars.pricevision.app), see `serving/deploy/`. Since then: scaled the deployed checkpoint from 80k to 300k training images, added gallery/upload/predict-URL modes to the demo UI (see [Setup / Usage](#setup--usage)), and ran a real logo-mask ablation (see [Logo-Mask Ablation](#logo-mask-ablation)) in place of the earlier "optional ablation" placeholder.
 
 ## License / Dataset Note
 
