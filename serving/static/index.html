@@ -727,7 +727,6 @@
             <td>Price</td>
             <td id="advertPricePred"></td>
             <td id="advertPriceActual"></td>
-            <td><span class="diff-pill" id="advertPriceDiff"></span></td>
           </tr>
         </tbody>
       </table>
@@ -1221,8 +1220,12 @@
         if (hasPrice) {
           refs.pricePred.textContent = fmtPrice(values.predPriceGbp);
           refs.priceActual.textContent = values.actualPriceText || fmtPrice(values.actualPriceGbp);
-          const pctDiff = ((values.predPriceGbp - values.actualPriceGbp) / values.actualPriceGbp) * 100;
-          diffPill(refs.priceDiff, pctDiff, values.mape, (d) => `${d.toFixed(0)}%`);
+          // The advert table has no price-diff cell (removed from the UI);
+          // the gallery ground-truth table still shows it.
+          if (refs.priceDiff) {
+            const pctDiff = ((values.predPriceGbp - values.actualPriceGbp) / values.actualPriceGbp) * 100;
+            diffPill(refs.priceDiff, pctDiff, values.mape, (d) => `${d.toFixed(0)}%`);
+          }
         }
       }
 
