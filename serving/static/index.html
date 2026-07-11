@@ -479,6 +479,16 @@
     }
     .diff-pill.close { background: var(--accent-soft); color: var(--accent); }
 
+    /* "Advert's own figures" variant of the comparison table -- same layout
+       as the gallery ground-truth table, just smaller and muted since the
+       advert's figures are scraped best-effort, not curated ground truth. */
+    .truth-table.advert-facts { font-size: 0.8rem; color: var(--muted); }
+    .truth-table.advert-facts caption .rate-note {
+      text-transform: none;
+      letter-spacing: normal;
+      font-weight: 400;
+    }
+
     .multi-photo-note {
       font-size: 0.85rem;
       color: var(--muted);
@@ -644,6 +654,7 @@
           <button class="primary" id="urlPredictBtn" disabled type="button">Fetch &amp; Predict</button>
         </div>
         <p class="field-hint">Paste a direct photo URL, or a car advert/listing page URL (e.g. auto.ria.com, mobile.de, autoscout24) — the server will pull its photos and average the prediction across them. Everything is downloaded server-side; nothing is fetched from your browser.</p>
+        <p class="field-hint">Tip: grab any car listing from <a href="https://auto.ria.com" target="_blank" rel="noopener">auto.ria.com</a> and paste its URL here.</p>
       </div>
 
       <div class="actions">
@@ -696,19 +707,44 @@
       </div>
       <p class="gradcam-caption">Warmer regions contributed more to the prediction.</p>
 
+      <!-- Advert-page results: the listing's own stated year/price, scraped
+           server-side (advert_year / advert_price_* response fields). Same
+           comparison layout as the gallery ground-truth table below; rows
+           with missing data are hidden individually. -->
+      <table class="truth-table advert-facts" id="advertTable" hidden>
+        <caption>Advert's own figures <span class="rate-note" id="advertRateNote"></span></caption>
+        <thead>
+          <tr><th></th><th>Predicted</th><th>Advert</th><th>Diff</th></tr>
+        </thead>
+        <tbody>
+          <tr id="advertYearRow">
+            <td>Year</td>
+            <td id="advertYearPred"></td>
+            <td id="advertYearActual"></td>
+            <td><span class="diff-pill" id="advertYearDiff"></span></td>
+          </tr>
+          <tr id="advertPriceRow">
+            <td>Price</td>
+            <td id="advertPricePred"></td>
+            <td id="advertPriceActual"></td>
+            <td><span class="diff-pill" id="advertPriceDiff"></span></td>
+          </tr>
+        </tbody>
+      </table>
+
       <table class="truth-table" id="truthTable" hidden>
         <caption>Ground truth (this is a sample gallery photo)</caption>
         <thead>
           <tr><th></th><th>Predicted</th><th>Actual</th><th>Diff</th></tr>
         </thead>
         <tbody>
-          <tr>
+          <tr id="truthYearRow">
             <td>Year</td>
             <td id="truthYearPred"></td>
             <td id="truthYearActual"></td>
             <td><span class="diff-pill" id="truthYearDiff"></span></td>
           </tr>
-          <tr>
+          <tr id="truthPriceRow">
             <td>Price</td>
             <td id="truthPricePred"></td>
             <td id="truthPriceActual"></td>
@@ -801,13 +837,11 @@
       const resultPhotoImg = document.getElementById("resultPhotoImg");
       const resultPhotoFallback = document.getElementById("resultPhotoFallback");
       const resultGradcamImg = document.getElementById("resultGradcamImg");
-      const truthTable = document.getElementById("truthTable");
-      const truthYearPred = document.getElementById("truthYearPred");
-      const truthYearActual = document.getElementById("truthYearActual");
-      const truthYearDiff = document.getElementById("truthYearDiff");
-      const truthPricePred = document.getElementById("truthPricePred");
-      const truthPriceActual = document.getElementById("truthPriceActual");
-      const truthPriceDiff = document.getElementById("truthPriceDiff");
+      // The two predicted-vs-actual comparison tables share one renderer
+      // (fillComparisonTable), so their element refs are grouped the same way.
+      const truthTableRefs = comparisonTableRefs("truth");
+      const advertTableRefs = comparisonTableRefs("advert");
+      const advertRateNote = document.getElementById("advertRateNote");
       const resultJson = document.getElementById("resultJson");
       const multiPhotoNote = document.getElementById("multiPhotoNote");
       const perPhotoDetails = document.getElementById("perPhotoDetails");
@@ -1144,6 +1178,63 @@
         el.classList.toggle("close", Math.abs(diff) <= closeThreshold);
       }
 
+      // Collects the element refs of one predicted-vs-actual comparison
+      // table (ids follow the "<prefix>Table" / "<prefix>YearRow" / ...
+      // convention) so fillComparisonTable can serve both the gallery
+      // ground-truth table and the advert's-own-figures table.
+      function comparisonTableRefs(prefix) {
+        const byId = (suffix) => document.getElementById(prefix + suffix);
+        return {
+          table: byId("Table"),
+          yearRow: byId("YearRow"),
+          yearPred: byId("YearPred"),
+          yearActual: byId("YearActual"),
+          yearDiff: byId("YearDiff"),
+          priceRow: byId("PriceRow"),
+          pricePred: byId("PricePred"),
+          priceActual: byId("PriceActual"),
+          priceDiff: byId("PriceDiff"),
+        };
+      }
+
+      // Shared renderer for a predicted-vs-actual comparison table: a Year
+      // row (diff in years) and a Price row (diff in %, computed in GBP).
+      // Rows whose "actual" value is missing are hidden individually; the
+      // whole table is hidden when neither row has data. `actualPriceText`
+      // optionally overrides how the actual price is displayed (used by the
+      // advert table to show the original currency AND the ≈£ conversion)
+      // while the % diff is always computed from `actualPriceGbp`.
+      function fillComparisonTable(refs, values) {
+        const hasYear = typeof values.actualYear === "number";
+        const hasPrice = typeof values.actualPriceGbp === "number" && values.actualPriceGbp > 0;
+        refs.table.hidden = !hasYear && !hasPrice;
+        if (refs.table.hidden) return;
+
+        refs.yearRow.hidden = !hasYear;
+        if (hasYear) {
+          refs.yearPred.textContent = String(values.predYear);
+          refs.yearActual.textContent = String(values.actualYear);
+          diffPill(refs.yearDiff, values.predYear - values.actualYear, Math.ceil(values.maeYears), (d) => `${d} yr${Math.abs(d) === 1 ? "" : "s"}`);
+        }
+
+        refs.priceRow.hidden = !hasPrice;
+        if (hasPrice) {
+          refs.pricePred.textContent = fmtPrice(values.predPriceGbp);
+          refs.priceActual.textContent = values.actualPriceText || fmtPrice(values.actualPriceGbp);
+          const pctDiff = ((values.predPriceGbp - values.actualPriceGbp) / values.actualPriceGbp) * 100;
+          diffPill(refs.priceDiff, pctDiff, values.mape, (d) => `${d.toFixed(0)}%`);
+        }
+      }
+
+      // "$8,500" / "₴1,250,000" / "12,500 XYZ" -- how the advert's own
+      // asking price is shown before the ≈£ conversion.
+      function fmtOriginalPrice(amount, currencyCode) {
+        const symbols = { USD: "$", EUR: "€", GBP: "£", UAH: "₴" };
+        const sym = symbols[currencyCode];
+        const num = Math.round(amount).toLocaleString("en-GB");
+        return sym ? `${sym}${num}` : `${num} ${currencyCode}`;
+      }
+
       // Best-effort basename for the per-photo list -- these URLs come from
       // an arbitrary advert page, so this is purely cosmetic (falls back to
       // the full URL if it can't be parsed).
@@ -1252,17 +1343,44 @@
 
         if (meta && meta.groundTruth) {
           const gt = meta.groundTruth;
-          truthTable.hidden = false;
-          truthYearPred.textContent = String(data.year);
-          truthYearActual.textContent = String(gt.true_year);
-          diffPill(truthYearDiff, data.year - gt.true_year, Math.ceil(maeYears), (d) => `${d} yr${Math.abs(d) === 1 ? "" : "s"}`);
-
-          truthPricePred.textContent = fmtPrice(data.price_gbp);
-          truthPriceActual.textContent = fmtPrice(gt.true_price_gbp);
-          const pctDiff = gt.true_price_gbp ? ((data.price_gbp - gt.true_price_gbp) / gt.true_price_gbp) * 100 : 0;
-          diffPill(truthPriceDiff, pctDiff, mape, (d) => `${d.toFixed(0)}%`);
+          fillComparisonTable(truthTableRefs, {
+            predYear: data.year,
+            actualYear: gt.true_year,
+            predPriceGbp: data.price_gbp,
+            actualPriceGbp: gt.true_price_gbp,
+            maeYears,
+            mape,
+          });
         } else {
-          truthTable.hidden = true;
+          truthTableRefs.table.hidden = true;
+        }
+
+        // Advert-page results: the listing's own stated year/price
+        // (advert_* fields, present only when the server could confidently
+        // read them off the page). Price diff is computed in GBP; the
+        // advert's original-currency figure is shown alongside the ≈£
+        // conversion. Missing fields simply hide their row (or the whole
+        // table).
+        const hasAdvertFacts = typeof data.advert_year === "number" || typeof data.advert_price_gbp === "number";
+        if (hasAdvertFacts) {
+          const original = data.advert_price_original;
+          const hasConvertedPrice = typeof data.advert_price_gbp === "number";
+          advertRateNote.textContent = hasConvertedPrice
+            ? (data.rate_source === "live" ? "(converted at current GBP rate)" : "(approximate fixed rate)")
+            : "";
+          fillComparisonTable(advertTableRefs, {
+            predYear: data.year,
+            actualYear: typeof data.advert_year === "number" ? data.advert_year : null,
+            predPriceGbp: data.price_gbp,
+            actualPriceGbp: hasConvertedPrice ? data.advert_price_gbp : null,
+            actualPriceText: hasConvertedPrice && original
+              ? `${fmtOriginalPrice(original.amount, original.currency)} ≈ ${fmtPrice(data.advert_price_gbp)}`
+              : null,
+            maeYears,
+            mape,
+          });
+        } else {
+          advertTableRefs.table.hidden = true;
         }
 
         // Keep the (possibly large) base64 Grad-CAM image out of the raw

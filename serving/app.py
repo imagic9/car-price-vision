@@ -25,6 +25,13 @@ POST /predict-url   -> {"url": "..."} -> JSON prediction, but the content is
                             was given is auto-detected after download by
                             content sniffing -- never by trusting the URL's
                             shape or the response's Content-Type alone.
+                            For this advert-page shape only, the response
+                            additionally carries the advert's OWN year and
+                            asking price when they can be confidently read
+                            off the page (advert_year, advert_price_original,
+                            advert_price_gbp, rate_source -- see "Advert
+                            fact extraction" below), so the UI can show a
+                            predicted-vs-advertised comparison.
 
 Model loading is graceful: if no exported model is found on disk, the
 server still starts (useful for early smoke-testing of the API surface /
@@ -136,6 +143,40 @@ up to roughly half of them. Grad-CAM is computed for only one photo, the
 "representative" one whose z-vector is closest (L2) to the median vector
 -- computing it for every photo would multiply the (CPU-only) Grad-CAM
 cost by the photo count for no benefit, since only one overlay is shown.
+
+Advert fact extraction (POST /predict-url, page-URL shape)
+-----------------------------------------------------------
+The same advert page that supplied the photos usually also states the
+car's year and asking price -- the most interesting "ground truth" a
+visitor could compare the model against. `extract_advert_facts_from_html`
+reads them off the already-downloaded HTML (the page is parsed exactly
+once per request -- `_parse_advert_page` -- and the resulting parse is
+shared with the photo extraction above). Priority order per field,
+stopping at the first confident hit:
+
+  1. JSON-LD (`application/ld+json`) nodes of schema.org type
+     Car/Vehicle/Product: price from `offers.price` + `offers.priceCurrency`
+     (`offers` may be a dict or a list; a top-level `price` also counts),
+     year from `vehicleModelDate` / `productionDate` / `releaseDate` /
+     `dateVehicleFirstRegistered`, or a 4-digit year in the node's `name`.
+  2. Meta/OpenGraph: a 4-digit year (1950..2029) in `og:title` or
+     `<title>` -- the LAST match in the string, since model names routinely
+     contain digits ("Nissan 350Z 2008"); price from
+     `product:price:amount` + `product:price:currency` metas.
+  3. Conservative raw-text fallback, price only: the currency-marked
+     amount nearest the top of the document ($..., ...грн/₴, €..., £...,
+     or "... USD/EUR/UAH/GBP"), with thousand separators normalized.
+
+Honesty rule: a field that can't be confidently extracted stays None and
+the corresponding response fields are simply omitted -- never guessed.
+Sanity bounds reject nonsense (price outside 50..5,000,000, year outside
+1950..2029). The advert's price is also converted to GBP (the model's
+output currency) via serving/currency.py -- live rates from a fixed,
+non-user-controlled API with a 24h in-memory cache and a hardcoded
+approximate fallback snapshot; `rate_source` in the response says which
+was used ("live"/"fallback"). Any failure anywhere in fact extraction or
+conversion degrades to "no comparison shown", never to a failed
+prediction (see `_attach_advert_facts`).
 """
 
 from __future__ import annotations
@@ -147,6 +188,7 @@ import ipaddress
 import json
 import logging
 import os
+import re
 import socket
 import statistics
 from pathlib import Path
@@ -159,6 +201,15 @@ from fastapi.responses import FileResponse, JSONResponse
 from fastapi.staticfiles import StaticFiles
 from PIL import Image
 from pydantic import BaseModel
+
+# serving/ has no __init__.py: inside the serving container it runs as a
+# top-level module (`uvicorn app:app` with WORKDIR /app/serving -- see
+# serving/Dockerfile), while tests and `uvicorn serving.app:app` from the
+# repo root import it as a namespace-package member. Support both shapes.
+try:
+    from serving import currency
+except ImportError:  # running from inside serving/ as a top-level module
+    import currency
 
 logger = logging.getLogger("car_price_vision.serving")
 logging.basicConfig(level=logging.INFO)
@@ -198,6 +249,37 @@ MAX_PHOTOS_PER_PAGE = 8  # cap on candidate photo URLs pulled out of one page.
 # a general image classifier.
 _ICON_URL_KEYWORDS = ("logo", "icon", "sprite", "avatar")
 
+# --- Advert fact extraction (see module docstring) ---------------------------
+# Sanity bounds -- outside these, an extracted value is treated as noise
+# (a phone number, a mileage figure, a stray SKU) and dropped, per the
+# "never guess" rule.
+ADVERT_YEAR_MIN = 1950
+ADVERT_YEAR_MAX = 2029
+ADVERT_PRICE_MIN = 50.0
+ADVERT_PRICE_MAX = 5_000_000.0
+# 4-digit year in ADVERT_YEAR_MIN..ADVERT_YEAR_MAX -- the range is baked
+# into the regex itself so every match is already in-bounds.
+_ADVERT_YEAR_RE = re.compile(r"\b(19[5-9]\d|20[0-2]\d)\b")
+# schema.org types whose year/price fields we trust (lowercased; @type may
+# also carry a full URL like "https://schema.org/Car", hence the suffix
+# match in _jsonld_node_is_advert_type).
+_JSONLD_ADVERT_TYPES = ("car", "vehicle", "product")
+_JSONLD_YEAR_KEYS = ("vehicleModelDate", "productionDate", "releaseDate", "dateVehicleFirstRegistered")
+# Raw-text price fallback: currency-marked amounts only (a bare number is
+# never trusted). Amount character classes deliberately use a literal
+# space + NBSP rather than \s so a match can't glue digits together across
+# newlines. The UAH/EUR/GBP/code patterns allow "." and "," as thousand
+# separators (see _parse_advert_amount); the mapping $->USD, грн/₴->UAH,
+# €->EUR, £->GBP is encoded per-pattern. Bounded quantifiers ({3,12}) keep
+# a match from swallowing arbitrarily long digit runs.
+_TEXT_PRICE_PATTERNS: list[tuple[re.Pattern[str], Optional[str]]] = [
+    (re.compile(r"\$\s?([\d  ,]{1,12}\d)"), "USD"),
+    (re.compile(r"(\d[\d  ,]{0,11})\s?(?:грн|₴)"), "UAH"),
+    (re.compile(r"€\s?([\d  .,]{1,12}\d)"), "EUR"),
+    (re.compile(r"£\s?([\d  .,]{1,12}\d)"), "GBP"),
+    (re.compile(r"(\d[\d  .,]{0,11})\s?(USD|EUR|UAH|GBP)\b"), None),  # currency read from group 2
+]
+
 
 class PerPhotoPrediction(BaseModel):
     """One entry of PredictionResponse.per_photo -- the per-photo
@@ -208,6 +290,17 @@ class PerPhotoPrediction(BaseModel):
     url: str
     year: int
     price_gbp: float
+
+
+class AdvertPriceOriginal(BaseModel):
+    """The advert page's own asking price, verbatim in the page's currency
+    (before any GBP conversion) -- see PredictionResponse.advert_price_gbp
+    for the converted figure and extract_advert_facts_from_html for how
+    it's read off the page.
+    """
+
+    amount: float
+    currency: str  # ISO 4217, e.g. "USD" / "EUR" / "UAH" / "GBP"
 
 
 class PredictionResponse(BaseModel):
@@ -227,6 +320,15 @@ class PredictionResponse(BaseModel):
     page_url: Optional[str] = None
     per_photo: Optional[list[PerPhotoPrediction]] = None
     representative_photo_url: Optional[str] = None
+    # --- Advert-page "own figures" comparison (POST /predict-url, page-URL
+    # shape only; see extract_advert_facts_from_html / _attach_advert_facts).
+    # All optional so every other request shape is unaffected; any of them
+    # may independently be null when the page didn't state that fact
+    # confidently enough (the "never guess" rule). ---
+    advert_year: Optional[int] = None
+    advert_price_original: Optional[AdvertPriceOriginal] = None
+    advert_price_gbp: Optional[float] = None
+    rate_source: Optional[str] = None  # "live" | "fallback"; see serving/currency.py
 
 
 class PredictURLRequest(BaseModel):
@@ -800,12 +902,14 @@ def _looks_like_html(body: bytes, content_type: str) -> bool:
 
 
 class _AdvertPageParser(html.parser.HTMLParser):
-    """Collects candidate photo URLs from an advert/listing page's raw
-    HTML, stdlib-only (no BeautifulSoup) -- see extract_photo_urls_from_html
-    for the priority order these lists are combined in. `html.parser`
-    itself already tolerates malformed/unclosed markup (it does not raise
-    on bad HTML the way a strict XML parser would), so this class doesn't
-    need its own recovery logic beyond guarding the embedded-JSON-LD parse.
+    """Collects candidate photo URLs *and* advert-fact raw material (JSON-LD
+    nodes, og:title / <title>, price metas) from an advert/listing page's
+    raw HTML in a single pass, stdlib-only (no BeautifulSoup) -- see
+    extract_photo_urls_from_html and extract_advert_facts_from_html for how
+    the collected pieces are combined/prioritized. `html.parser` itself
+    already tolerates malformed/unclosed markup (it does not raise on bad
+    HTML the way a strict XML parser would), so this class doesn't need its
+    own recovery logic beyond guarding the embedded-JSON-LD parse.
     """
 
     def __init__(self) -> None:
@@ -814,8 +918,16 @@ class _AdvertPageParser(html.parser.HTMLParser):
         self.twitter_images: list[str] = []
         self.ldjson_images: list[str] = []
         self.img_srcs: list[str] = []
+        # Advert-fact raw material (see extract_advert_facts_from_html).
+        self.ldjson_nodes: list[dict] = []  # every parsed JSON-LD object, in document order
+        self.og_title: Optional[str] = None
+        self.title: Optional[str] = None
+        self.meta_price_amount: Optional[str] = None
+        self.meta_price_currency: Optional[str] = None
         self._in_ldjson_script = False
         self._ldjson_buffer: list[str] = []
+        self._in_title = False
+        self._title_buffer: list[str] = []
 
     def handle_starttag(self, tag: str, attrs: list[tuple[str, Optional[str]]]) -> None:
         attrs_d = {k.lower(): v for k, v in attrs if k is not None}
@@ -827,11 +939,20 @@ class _AdvertPageParser(html.parser.HTMLParser):
                     self.og_images.append(content)
                 elif prop in ("twitter:image", "twitter:image:src"):
                     self.twitter_images.append(content)
+                elif prop == "og:title" and self.og_title is None:
+                    self.og_title = content
+                elif prop in ("product:price:amount", "og:price:amount") and self.meta_price_amount is None:
+                    self.meta_price_amount = content
+                elif prop in ("product:price:currency", "og:price:currency") and self.meta_price_currency is None:
+                    self.meta_price_currency = content
         elif tag == "script":
             script_type = (attrs_d.get("type") or "").lower()
             self._in_ldjson_script = script_type == "application/ld+json"
             if self._in_ldjson_script:
                 self._ldjson_buffer = []
+        elif tag == "title":
+            self._in_title = True
+            self._title_buffer = []
         elif tag == "img":
             src = attrs_d.get("src") or attrs_d.get("data-src")
             if src:
@@ -840,14 +961,26 @@ class _AdvertPageParser(html.parser.HTMLParser):
     def handle_data(self, data: str) -> None:
         if self._in_ldjson_script:
             self._ldjson_buffer.append(data)
+        if self._in_title:
+            self._title_buffer.append(data)
 
     def handle_endtag(self, tag: str) -> None:
         if tag == "script" and self._in_ldjson_script:
             self._in_ldjson_script = False
-            self._extract_ldjson_images("".join(self._ldjson_buffer))
+            self._ingest_ldjson("".join(self._ldjson_buffer))
             self._ldjson_buffer = []
+        elif tag == "title" and self._in_title:
+            self._in_title = False
+            if self.title is None:
+                self.title = "".join(self._title_buffer).strip() or None
+            self._title_buffer = []
 
-    def _extract_ldjson_images(self, raw_json: str) -> None:
+    def _ingest_ldjson(self, raw_json: str) -> None:
+        """Parse one JSON-LD <script> block: remember every object node (for
+        extract_advert_facts_from_html) and collect its "image" field(s)
+        (for extract_photo_urls_from_html). One level of "@graph" is
+        flattened -- a very common wrapper on real marketplace pages.
+        """
         try:
             data = json.loads(raw_json)
         except (json.JSONDecodeError, ValueError):
@@ -856,14 +989,46 @@ class _AdvertPageParser(html.parser.HTMLParser):
         for node in nodes:
             if not isinstance(node, dict):
                 continue
-            image = node.get("image")
-            if isinstance(image, str):
-                self.ldjson_images.append(image)
-            elif isinstance(image, list):
-                self.ldjson_images.extend(item for item in image if isinstance(item, str))
+            graph = node.get("@graph")
+            subnodes = [node] + [g for g in graph if isinstance(g, dict)] if isinstance(graph, list) else [node]
+            for sub in subnodes:
+                self.ldjson_nodes.append(sub)
+                image = sub.get("image")
+                if isinstance(image, str):
+                    self.ldjson_images.append(image)
+                elif isinstance(image, list):
+                    self.ldjson_images.extend(item for item in image if isinstance(item, str))
 
 
-def extract_photo_urls_from_html(html_bytes: bytes, base_url: str) -> list[str]:
+def _decode_html(html_content: bytes | str) -> str:
+    """bytes -> str (utf-8, lossy) passthrough helper so the extraction
+    functions below accept either shape.
+    """
+    if isinstance(html_content, bytes):
+        return html_content.decode("utf-8", errors="ignore")
+    return html_content
+
+
+def _parse_advert_page(html_content: bytes | str) -> Optional[_AdvertPageParser]:
+    """Run _AdvertPageParser over the page once and return it (or None if
+    even the tolerant stdlib parser blew up). The endpoint parses each
+    downloaded page exactly once and hands the result to both
+    extract_photo_urls_from_html and extract_advert_facts_from_html via
+    their `parser` parameter.
+    """
+    try:
+        parser = _AdvertPageParser()
+        parser.feed(_decode_html(html_content))
+        parser.close()
+        return parser
+    except Exception:
+        logger.exception("Failed to parse advert page HTML.")
+        return None
+
+
+def extract_photo_urls_from_html(
+    html_bytes: bytes, base_url: str, parser: Optional[_AdvertPageParser] = None
+) -> list[str]:
     """Extract candidate car-photo URLs from an advert/listing page's raw
     HTML (see the module docstring's "Advert-page photo extraction"
     section for the full rationale). Priority order, highest first:
@@ -876,17 +1041,16 @@ def extract_photo_urls_from_html(html_bytes: bytes, base_url: str) -> list[str]:
     survive; results are de-duplicated preserving order and capped at
     MAX_PHOTOS_PER_PAGE.
 
+    Pass an already-built `parser` (from _parse_advert_page) to skip
+    re-parsing the same page; omitted, the page is parsed here.
+
     Never raises: malformed HTML/JSON degrades to fewer (possibly zero)
     candidates rather than propagating an exception, so one broken listing
     page can't 500 the endpoint.
     """
-    try:
-        text = html_bytes.decode("utf-8", errors="ignore")
-        parser = _AdvertPageParser()
-        parser.feed(text)
-        parser.close()
-    except Exception:
-        logger.exception("Failed to parse advert page HTML; no photos extracted.")
+    if parser is None:
+        parser = _parse_advert_page(html_bytes)
+    if parser is None:
         return []
 
     candidates = parser.og_images + parser.twitter_images + parser.ldjson_images + parser.img_srcs
@@ -913,6 +1077,211 @@ def extract_photo_urls_from_html(html_bytes: bytes, base_url: str) -> list[str]:
         if len(result) >= MAX_PHOTOS_PER_PAGE:
             break
     return result
+
+
+def _parse_advert_amount(raw: str) -> Optional[float]:
+    """Parse a human-formatted money amount ("8 500", "1 250 000", "12.500",
+    "12,999.99") into a float, or None if it doesn't look like one.
+
+    Separator rules, deliberately simple: spaces/NBSPs are always thousand
+    separators; a FINAL "." or "," followed by exactly 1-2 digits is a
+    decimal point; every other "." / "," is a thousand separator (so
+    "12.500" is twelve and a half thousand, the common European style on
+    e.g. German/Ukrainian listings, not 12.5).
+    """
+    cleaned = raw.replace(" ", "").replace(" ", "").strip()
+    if not cleaned:
+        return None
+    decimal_part = ""
+    m = re.fullmatch(r"(.+)[.,](\d{1,2})", cleaned)
+    if m:
+        cleaned, decimal_part = m.group(1), m.group(2)
+    integer_digits = cleaned.replace(",", "").replace(".", "")
+    if not integer_digits.isdigit():
+        return None
+    return float(integer_digits + ("." + decimal_part if decimal_part else ""))
+
+
+def _advert_price_in_bounds(price: Optional[float]) -> bool:
+    """Sanity gate for every extracted price, whatever its source -- see
+    ADVERT_PRICE_MIN/MAX and the "never guess" rule in the module docstring.
+    """
+    return price is not None and ADVERT_PRICE_MIN <= price <= ADVERT_PRICE_MAX
+
+
+def _last_year_in_text(text: str) -> Optional[int]:
+    """LAST in-range 4-digit year in `text`, or None. Last rather than
+    first because model names routinely contain digit runs and the year
+    conventionally trails the title ("Nissan 350Z 2008", "BMW 2002 Turbo
+    1974"). Range 1950..2029 is baked into _ADVERT_YEAR_RE itself.
+    """
+    matches = _ADVERT_YEAR_RE.findall(text)
+    return int(matches[-1]) if matches else None
+
+
+def _jsonld_node_is_advert_type(node: dict) -> bool:
+    """True if the JSON-LD node's @type (string or list, possibly a full
+    schema.org URL) is one of _JSONLD_ADVERT_TYPES.
+    """
+    raw_type = node.get("@type")
+    types = raw_type if isinstance(raw_type, list) else [raw_type]
+    return any(
+        isinstance(t, str) and t.strip().lower().rstrip("/").rsplit("/", 1)[-1] in _JSONLD_ADVERT_TYPES
+        for t in types
+    )
+
+
+def _jsonld_year(node: dict) -> Optional[int]:
+    """Year from a Car/Vehicle/Product JSON-LD node: the dedicated schema.org
+    date fields first (values like 2016, "2016" or "2016-03-01" all work --
+    the year is regex'd out of the stringified value), then a 4-digit year
+    in the node's "name" as a fallback.
+    """
+    for key in _JSONLD_YEAR_KEYS:
+        value = node.get(key)
+        if value is None:
+            continue
+        match = _ADVERT_YEAR_RE.search(str(value))
+        if match:
+            return int(match.group(0))
+    name = node.get("name")
+    if isinstance(name, str):
+        return _last_year_in_text(name)
+    return None
+
+
+def _jsonld_price(node: dict) -> tuple[Optional[float], Optional[str]]:
+    """(price, currency) from a Car/Vehicle/Product JSON-LD node's offers
+    (dict or list of dicts; `price` + `priceCurrency`), or from a `price`
+    directly on the node. (None, None) if nothing in-bounds is found;
+    currency may be None when the node states a price without one.
+    """
+    offers = node.get("offers")
+    if isinstance(offers, dict):
+        offer_candidates: list[dict] = [offers]
+    elif isinstance(offers, list):
+        offer_candidates = [o for o in offers if isinstance(o, dict)]
+    else:
+        offer_candidates = []
+
+    for candidate in offer_candidates + [node]:
+        raw_price = candidate.get("price")
+        if raw_price is None:
+            continue
+        price = _parse_advert_amount(str(raw_price))
+        if not _advert_price_in_bounds(price):
+            continue
+        raw_currency = candidate.get("priceCurrency")
+        currency_code = raw_currency.strip().upper() if isinstance(raw_currency, str) and raw_currency.strip() else None
+        return price, currency_code
+    return None, None
+
+
+def _text_fallback_price(text: str) -> tuple[Optional[float], Optional[str]]:
+    """Conservative raw-text price scan (see _TEXT_PRICE_PATTERNS): only
+    currency-marked amounts count, out-of-bounds matches are skipped, and
+    when several patterns match, the one nearest the top of the document
+    wins (listings put the asking price in the header; footers are full of
+    unrelated amounts). Returns (price, currency) or (None, None).
+    """
+    best: Optional[tuple[int, float, str]] = None  # (position, price, currency)
+    for pattern, fixed_currency in _TEXT_PRICE_PATTERNS:
+        for match in pattern.finditer(text):
+            price = _parse_advert_amount(match.group(1))
+            if not _advert_price_in_bounds(price):
+                continue  # keep scanning: a later match of this pattern may be sane
+            currency_code = fixed_currency or match.group(2).upper()
+            if best is None or match.start() < best[0]:
+                best = (match.start(), price, currency_code)
+            break  # first in-bounds match per pattern; position decides across patterns
+    if best is None:
+        return None, None
+    return best[1], best[2]
+
+
+def extract_advert_facts_from_html(
+    html_content: bytes | str, parser: Optional[_AdvertPageParser] = None
+) -> dict:
+    """Extract the advert's OWN stated year and asking price from a
+    listing page's raw HTML, for the predicted-vs-advertised comparison
+    (see the module docstring's "Advert fact extraction" section for the
+    full priority order and the "never guess" rule).
+
+    Returns {"year": int|None, "price": float|None, "currency": str|None};
+    each field independently stays None when nothing confident was found.
+    Pass an already-built `parser` (from _parse_advert_page) to skip
+    re-parsing the same page. Pure function (no I/O), directly
+    unit-testable -- see tests/test_advert_facts.py. Never raises:
+    malformed pages degrade to all-None.
+    """
+    facts: dict = {"year": None, "price": None, "currency": None}
+    if parser is None:
+        parser = _parse_advert_page(html_content)
+    if parser is None:
+        return facts
+
+    # 1. JSON-LD Car/Vehicle/Product nodes -- the most structured source.
+    for node in parser.ldjson_nodes:
+        if not _jsonld_node_is_advert_type(node):
+            continue
+        if facts["year"] is None:
+            facts["year"] = _jsonld_year(node)
+        if facts["price"] is None:
+            price, currency_code = _jsonld_price(node)
+            if price is not None:
+                facts["price"], facts["currency"] = price, currency_code
+        if facts["year"] is not None and facts["price"] is not None:
+            return facts
+
+    # 2. Meta/OpenGraph fallbacks.
+    if facts["year"] is None:
+        for title in (parser.og_title, parser.title):
+            if title:
+                facts["year"] = _last_year_in_text(title)
+                if facts["year"] is not None:
+                    break
+    if facts["price"] is None and parser.meta_price_amount:
+        price = _parse_advert_amount(parser.meta_price_amount)
+        if _advert_price_in_bounds(price):
+            raw_currency = parser.meta_price_currency
+            facts["price"] = price
+            facts["currency"] = raw_currency.strip().upper() if raw_currency and raw_currency.strip() else None
+
+    # 3. Conservative raw-text fallback -- price only (a bare 4-digit number
+    # in page text is far too ambiguous to ever trust as a year).
+    if facts["price"] is None:
+        price, currency_code = _text_fallback_price(_decode_html(html_content))
+        if price is not None:
+            facts["price"], facts["currency"] = price, currency_code
+
+    return facts
+
+
+def _attach_advert_facts(response: PredictionResponse, html_body: bytes, parser: Optional[_AdvertPageParser]) -> None:
+    """Populate the advert_* fields of an advert-page PredictionResponse in
+    place from the page's own stated facts (extract_advert_facts_from_html)
+    plus a GBP conversion (serving/currency.py).
+
+    Never raises, and never leaves the response half-broken: this whole
+    comparison is a bonus on top of an already-successful prediction, so
+    any failure here (parse, extraction, FX rates) just means the advert_*
+    fields stay None and the UI omits the comparison.
+    """
+    try:
+        facts = extract_advert_facts_from_html(html_body, parser=parser)
+        if facts.get("year") is not None:
+            response.advert_year = int(facts["year"])
+        price, currency_code = facts.get("price"), facts.get("currency")
+        # A price without a currency can't be honestly compared against a
+        # GBP prediction, so it's dropped rather than displayed ambiguously.
+        if price is not None and currency_code:
+            response.advert_price_original = AdvertPriceOriginal(amount=float(price), currency=currency_code)
+            price_gbp = currency.to_gbp(price, currency_code)
+            if price_gbp is not None:
+                response.advert_price_gbp = round(price_gbp, 2)
+                response.rate_source = currency.get_rate_source()
+    except Exception:
+        logger.exception("Advert fact extraction failed; returning the prediction without the comparison.")
 
 
 def _run_prediction_for_photos(bundle: ModelBundle, photo_urls: list[str], page_url: str) -> PredictionResponse:
@@ -1017,11 +1386,17 @@ async def predict_url(payload: PredictURLRequest) -> PredictionResponse:
     if not _looks_like_html(body, content_type):
         raise HTTPException(status_code=400, detail="Downloaded content is not a valid image.")
 
-    photo_urls = extract_photo_urls_from_html(body, base_url=final_url)
+    # One parse of the page, shared by photo extraction and fact extraction.
+    parser = _parse_advert_page(body)
+    photo_urls = extract_photo_urls_from_html(body, base_url=final_url, parser=parser)
     if not photo_urls:
         raise HTTPException(status_code=422, detail="Could not find any usable car photos on that page.")
 
-    return _run_prediction_for_photos(bundle, photo_urls, page_url=payload.url)
+    response = _run_prediction_for_photos(bundle, photo_urls, page_url=payload.url)
+    # Bonus comparison against the advert's own stated year/price -- never
+    # allowed to fail the prediction itself (see _attach_advert_facts).
+    _attach_advert_facts(response, body, parser)
+    return response
 
 
 if __name__ == "__main__":
