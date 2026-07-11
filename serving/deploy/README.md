@@ -1,6 +1,6 @@
 # Deployment runbook — car-price-vision demo
 
-Public demo target: **https://cars.pricevision.app** (the sole public
+Public demo target: **https://pricevision.app** (the sole public
 hostname since 2026-07-11; the original aetherkin.space apex was
 decommissioned the same day — its tunnel ingress rule and CNAME were
 removed, mail MX/SPF records left untouched), served via a **Cloudflare
