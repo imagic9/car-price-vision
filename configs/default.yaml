@@ -6,13 +6,12 @@
 seed: 42
 
 paths:
-  # TODO(phase 1): point data_root at the DVM-CAR extraction directory on `rtx`.
-  data_root: data/dvm-car
-  # TODO(phase 1): produced by scripts/build_manifest.py from raw DVM-CAR metadata.
-  manifest_csv: data/manifest.csv
-  out_dir: outputs/default_run
-  checkpoint_dir: checkpoints/default_run
-  log_dir: outputs/default_run/logs
+  # Data staged on the training box (Blackwell GB10 GX10 machine).
+  data_root: /data/car-price-vision
+  manifest_csv: /data/car-price-vision/manifest.csv
+  out_dir: /data/car-price-vision/outputs/baseline_convnext
+  checkpoint_dir: /data/car-price-vision/checkpoints/baseline_convnext
+  log_dir: /data/car-price-vision/outputs/baseline_convnext/logs
 
 data:
   img_size: 224
@@ -22,10 +21,22 @@ data:
   num_workers: 8
   # split strategy: "by_advert" (random, time-aware) or "by_model" (leakage-safe,
   # holds out entire car models). See src/car_price_vision/data/splits.py
-  split_mode: by_advert
+  split_mode: by_model
   holdout_models_frac: 0.1
   val_frac: 0.1
   test_frac: 0.1
+
+# Standardization constants for the two regression targets, computed from the
+# real manifest (see scripts/build_manifest.py output). Targets are trained
+# and loss-computed in z-space (see data/dataset.py, train.py); eval/serving
+# must invert predictions with these exact same constants:
+#   year = year_t * year_std + year_mean
+#   log_price = logp_t * log_price_std + log_price_mean
+target_norm:
+  year_mean: 2012.3723
+  year_std: 4.4677
+  log_price_mean: 9.0403
+  log_price_std: 0.9975
 
 model:
   # one of: convnext_tiny | efficientnet_v2_s | vit_b_16

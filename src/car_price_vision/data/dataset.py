@@ -37,12 +37,23 @@ REQUIRED_COLUMNS = ["image_path", "year", "price_gbp", "model", "brand", "advert
 class DVMCarDataset(Dataset):
     """Loads (image, targets) pairs from a unified manifest CSV.
 
-    Targets returned per sample:
+    Targets returned per sample (raw mode, `target_norm=None`):
         {"year": float32 scalar tensor, "log_price": float32 scalar tensor}
 
-    `log_price` is `log(price_gbp)` (natural log); training/eval code is
-    expected to `exp()` predictions back to GBP when reporting MAPE, etc.
-    (see metrics.py).
+    `log_price` is `log(price_gbp)` (natural log).
+
+    If `target_norm` is provided (dict with `year_mean`, `year_std`,
+    `log_price_mean`, `log_price_std`), both targets are additionally
+    standardized to z-scores before being returned:
+        year_t = (year - year_mean) / year_std
+        logp_t = (log_price - log_price_mean) / log_price_std
+    This keeps both regression targets on a comparable, roughly unit-scale
+    range so the Huber loss and randomly-initialized heads don't saturate on
+    the raw scales (year ~2012, log_price ~9.0). Training (see train.py)
+    trains and computes loss entirely in this z-space; eval.py and the
+    serving code MUST invert predictions with the exact same `target_norm`
+    constants (`pred * std + mean`) to recover real years / GBP prices —
+    see configs/default.yaml `target_norm` for the canonical constants.
 
     Missing/corrupt images are handled gracefully: __getitem__ falls back to
     a blank (zero) image rather than raising, so a few bad files on disk
@@ -55,6 +66,7 @@ class DVMCarDataset(Dataset):
         data_root: str | Path | None = None,
         transform: Callable[[Image.Image], torch.Tensor] | None = None,
         indices: np.ndarray | None = None,
+        target_norm: dict | None = None,
     ) -> None:
         """
         Args:
@@ -67,6 +79,10 @@ class DVMCarDataset(Dataset):
             indices: optional row indices (e.g. from splits.make_splits) to
                 restrict this dataset to a subset of the manifest without
                 copying the underlying DataFrame.
+            target_norm: optional dict with keys `year_mean`, `year_std`,
+                `log_price_mean`, `log_price_std` used to standardize both
+                regression targets to z-scores (see class docstring). If
+                None, targets are returned in raw units (unchanged behavior).
         """
         if isinstance(manifest, (str, Path)):
             df = pd.read_csv(manifest)
@@ -84,6 +100,7 @@ class DVMCarDataset(Dataset):
         self.df = df.reset_index(drop=True) if indices is None else df.iloc[indices].reset_index(drop=True)
         self.data_root = Path(data_root) if data_root is not None else None
         self.transform = transform
+        self.target_norm = target_norm
         self._n_load_failures = 0
 
     def __len__(self) -> int:
@@ -119,9 +136,14 @@ class DVMCarDataset(Dataset):
 
         price_gbp = float(row["price_gbp"])
         log_price = float(np.log(max(price_gbp, 1e-6)))
+        year = float(row["year"])
+
+        if self.target_norm is not None:
+            year = (year - self.target_norm["year_mean"]) / self.target_norm["year_std"]
+            log_price = (log_price - self.target_norm["log_price_mean"]) / self.target_norm["log_price_std"]
 
         targets: dict[str, torch.Tensor] = {
-            "year": torch.tensor(float(row["year"]), dtype=torch.float32),
+            "year": torch.tensor(year, dtype=torch.float32),
             "log_price": torch.tensor(log_price, dtype=torch.float32),
         }
         return image_tensor, targets

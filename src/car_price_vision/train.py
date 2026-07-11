@@ -20,6 +20,7 @@ Usage:
 from __future__ import annotations
 
 import argparse
+import contextlib
 import csv
 import time
 from pathlib import Path
@@ -79,12 +80,21 @@ def build_dataloaders(cfg: Config) -> dict[str, DataLoader]:
 
     img_size = cfg.data.get("img_size", 224)
     data_root = cfg.paths.get("data_root")
+    # Top-level `target_norm` block (see configs/default.yaml); Config has no
+    # dedicated property for it, so go through the generic dict accessor.
+    target_norm = cfg.get("target_norm", None)
 
-    train_ds = DVMCarDataset(df, data_root=data_root, transform=train_transforms(img_size), indices=splits["train"])
-    val_ds = DVMCarDataset(df, data_root=data_root, transform=eval_transforms(img_size), indices=splits["val"])
-    test_ds = DVMCarDataset(df, data_root=data_root, transform=eval_transforms(img_size), indices=splits["test"])
+    train_ds = DVMCarDataset(
+        df, data_root=data_root, transform=train_transforms(img_size), indices=splits["train"], target_norm=target_norm
+    )
+    val_ds = DVMCarDataset(
+        df, data_root=data_root, transform=eval_transforms(img_size), indices=splits["val"], target_norm=target_norm
+    )
+    test_ds = DVMCarDataset(
+        df, data_root=data_root, transform=eval_transforms(img_size), indices=splits["test"], target_norm=target_norm
+    )
     holdout_ds = DVMCarDataset(
-        df, data_root=data_root, transform=eval_transforms(img_size), indices=splits["holdout"]
+        df, data_root=data_root, transform=eval_transforms(img_size), indices=splits["holdout"], target_norm=target_norm
     )
 
     num_workers = cfg.data.get("num_workers", 8)
@@ -107,9 +117,24 @@ def run_epoch(
     optimizer: torch.optim.Optimizer | None = None,
     logger=None,
     log_every_steps: int = 50,
+    target_norm: dict | None = None,
 ) -> dict[str, float]:
     """Run one epoch over `loader`. Trains if `optimizer` is given, otherwise
     evaluates in no-grad mode. Returns averaged loss/year-MAE/price-log-MAE.
+
+    Loss is always computed in whatever space the dataset returns targets in
+    (z-space when `target_norm` was passed to the dataset, see
+    data/dataset.py). `year_mae`/`price_log_mae` are de-standardized back to
+    real units (years / natural-log-GBP) for human-readable logging using
+    `target_norm`'s stds, so they read the same as before targets were
+    standardized. If `target_norm` is None, no de-standardization is applied
+    (stds default to 1.0, i.e. raw-space MAE, matching the old behavior).
+
+    AMP: when `cfg.train.amp` is true and `device` is CUDA, the forward pass
+    and loss computation run under `torch.autocast(..., dtype=torch.bfloat16)`.
+    bf16 needs no GradScaler (unlike fp16), so backward/optimizer step run
+    at full precision outside the autocast context. Falls back to full
+    precision on CPU/MPS or when `train.amp` is false.
     """
     is_train = optimizer is not None
     model.train(is_train)
@@ -123,6 +148,14 @@ def run_epoch(
     huber_delta = cfg.loss.get("huber_delta", 1.0)
     grad_clip_norm = cfg.train.get("grad_clip_norm", 1.0)
 
+    year_std = target_norm["year_std"] if target_norm is not None else 1.0
+    log_price_std = target_norm["log_price_std"] if target_norm is not None else 1.0
+
+    use_amp = bool(cfg.train.get("amp", False)) and device.type == "cuda"
+    # Only ever construct a CUDA autocast context when we've confirmed the
+    # device is CUDA; otherwise stay a no-op so this is safe on CPU/MPS too.
+    amp_context = torch.autocast(device_type="cuda", dtype=torch.bfloat16) if use_amp else contextlib.nullcontext()
+
     context = torch.enable_grad() if is_train else torch.no_grad()
     with context:
         for step, (images, targets) in enumerate(loader):
@@ -132,10 +165,11 @@ def run_epoch(
             if is_train:
                 optimizer.zero_grad(set_to_none=True)
 
-            preds = model(images)
-            losses = multitask_loss(
-                preds, targets, weight_year=weight_year, weight_price=weight_price, huber_delta=huber_delta
-            )
+            with amp_context:
+                preds = model(images)
+                losses = multitask_loss(
+                    preds, targets, weight_year=weight_year, weight_price=weight_price, huber_delta=huber_delta
+                )
 
             if is_train:
                 losses["loss"].backward()
@@ -145,10 +179,11 @@ def run_epoch(
             batch_size = images.size(0)
             loss_meter.update(losses["loss"].item(), batch_size)
             year_mae_meter.update(
-                torch.mean(torch.abs(preds["year"].detach() - targets["year"])).item(), batch_size
+                year_std * torch.mean(torch.abs(preds["year"].detach() - targets["year"])).item(), batch_size
             )
             price_mae_meter.update(
-                torch.mean(torch.abs(preds["log_price"].detach() - targets["log_price"])).item(), batch_size
+                log_price_std * torch.mean(torch.abs(preds["log_price"].detach() - targets["log_price"])).item(),
+                batch_size,
             )
 
             if logger is not None and is_train and step % log_every_steps == 0:
@@ -164,7 +199,21 @@ def run_epoch(
     return {"loss": loss_meter.avg, "year_mae": year_mae_meter.avg, "price_log_mae": price_mae_meter.avg}
 
 
-def save_checkpoint(path: Path, model: MultiTaskCarNet, optimizer: torch.optim.Optimizer, epoch: int, stage: int) -> None:
+def save_checkpoint(
+    path: Path,
+    model: MultiTaskCarNet,
+    optimizer: torch.optim.Optimizer,
+    epoch: int,
+    stage: int,
+    target_norm: dict | None = None,
+    backbone_name: str | None = None,
+    img_size: int | None = None,
+) -> None:
+    """Persist model/optimizer state plus enough metadata (target
+    standardization constants, backbone architecture, input resolution) for
+    eval.py / serving to reconstruct the model and invert predictions back
+    to real units without needing the training config on hand.
+    """
     path.parent.mkdir(parents=True, exist_ok=True)
     torch.save(
         {
@@ -172,6 +221,9 @@ def save_checkpoint(path: Path, model: MultiTaskCarNet, optimizer: torch.optim.O
             "optimizer_state_dict": optimizer.state_dict(),
             "epoch": epoch,
             "stage": stage,
+            "target_norm": target_norm,
+            "backbone_name": backbone_name,
+            "img_size": img_size,
         },
         path,
     )
@@ -198,12 +250,16 @@ def train(cfg: Config, resume: bool = False) -> None:
     )
 
     logger.info("Device: %s", device)
-    logger.info("Backbone: %s", cfg.model.get("backbone", "convnext_tiny"))
+    backbone_name = cfg.model.get("backbone", "convnext_tiny")
+    img_size = cfg.data.get("img_size", 224)
+    target_norm = cfg.get("target_norm", None)
+    logger.info("Backbone: %s", backbone_name)
+    logger.info("Target norm: %s", target_norm)
 
     loaders = build_dataloaders(cfg)
 
     model = MultiTaskCarNet(
-        backbone_name=cfg.model.get("backbone", "convnext_tiny"),
+        backbone_name=backbone_name,
         pretrained=cfg.model.get("pretrained", True),
         head_hidden_dim=cfg.model.get("head_hidden_dim", 256),
         head_dropout=cfg.model.get("head_dropout", 0.2),
@@ -245,9 +301,16 @@ def train(cfg: Config, resume: bool = False) -> None:
         for epoch in range(epoch_start, stage_cfg["epochs"]):
             t0 = time.time()
             train_metrics = run_epoch(
-                model, loaders["train"], device, cfg, optimizer=optimizer, logger=logger, log_every_steps=log_every_steps
+                model,
+                loaders["train"],
+                device,
+                cfg,
+                optimizer=optimizer,
+                logger=logger,
+                log_every_steps=log_every_steps,
+                target_norm=target_norm,
             )
-            val_metrics = run_epoch(model, loaders["val"], device, cfg, optimizer=None)
+            val_metrics = run_epoch(model, loaders["val"], device, cfg, optimizer=None, target_norm=target_norm)
             elapsed = time.time() - t0
 
             logger.info(
@@ -265,8 +328,26 @@ def train(cfg: Config, resume: bool = False) -> None:
             csv_logger.log({"stage": stage, "epoch": epoch, "split": "val", "elapsed_s": elapsed, **val_metrics})
 
             if epoch % checkpoint_every == 0:
-                save_checkpoint(latest_ckpt, model, optimizer, epoch, stage)
-                save_checkpoint(checkpoint_dir / f"stage{stage}_epoch{epoch}.pt", model, optimizer, epoch, stage)
+                save_checkpoint(
+                    latest_ckpt,
+                    model,
+                    optimizer,
+                    epoch,
+                    stage,
+                    target_norm=target_norm,
+                    backbone_name=backbone_name,
+                    img_size=img_size,
+                )
+                save_checkpoint(
+                    checkpoint_dir / f"stage{stage}_epoch{epoch}.pt",
+                    model,
+                    optimizer,
+                    epoch,
+                    stage,
+                    target_norm=target_norm,
+                    backbone_name=backbone_name,
+                    img_size=img_size,
+                )
 
     logger.info("Training complete. Final checkpoint: %s", latest_ckpt)
 
