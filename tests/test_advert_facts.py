@@ -279,3 +279,26 @@ def test_text_fallback_embedded_state_price_keys():
     facts = extract_advert_facts_from_html(html_escaped)
     assert facts["price"] == 445900.0
     assert facts["currency"] == "UAH"
+
+
+def test_jsonld_price_without_currency_resolved_by_matching_text_amount():
+    """auto.ria pattern: JSON-LD has "price" but no priceCurrency; the text
+    fallback finds the SAME amount currency-marked -> its currency is
+    trusted. A mismatching text amount must NOT donate its currency."""
+    html = (
+        '<html><head><script type="application/ld+json">'
+        '{"@type": "Product", "name": "Nissan Rogue 2014", "offers": {"price": "10000"}}'
+        "</script></head><body>ціна 10\xa0000 $</body></html>"
+    )
+    facts = extract_advert_facts_from_html(html)
+    assert facts["price"] == 10000.0
+    assert facts["currency"] == "USD"
+
+    html_mismatch = (
+        '<html><head><script type="application/ld+json">'
+        '{"@type": "Product", "name": "Nissan Rogue 2014", "offers": {"price": "10000"}}'
+        "</script></head><body>розстрочка 250 $/міс</body></html>"
+    )
+    facts = extract_advert_facts_from_html(html_mismatch)
+    assert facts["price"] == 10000.0
+    assert facts["currency"] is None

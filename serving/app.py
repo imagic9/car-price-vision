@@ -1240,7 +1240,9 @@ def extract_advert_facts_from_html(
             price, currency_code = _jsonld_price(node)
             if price is not None:
                 facts["price"], facts["currency"] = price, currency_code
-        if facts["year"] is not None and facts["price"] is not None:
+        if facts["year"] is not None and facts["price"] is not None and facts["currency"] is not None:
+            # Fully resolved (a price without its currency is NOT final --
+            # step 3's consistency check below may still recover it).
             return facts
 
     # 2. Meta/OpenGraph fallbacks.
@@ -1263,6 +1265,15 @@ def extract_advert_facts_from_html(
         price, currency_code = _text_fallback_price(_decode_html(html_content))
         if price is not None:
             facts["price"], facts["currency"] = price, currency_code
+    elif facts["currency"] is None:
+        # A structured source stated the price but not its currency (seen in
+        # the wild: auto.ria's JSON-LD has "price" with no priceCurrency).
+        # Ask the text fallback, and trust its currency ONLY if it found the
+        # SAME amount -- consistency is the safeguard against pairing the
+        # structured price with some unrelated amount's currency.
+        fb_price, fb_currency = _text_fallback_price(_decode_html(html_content))
+        if fb_currency is not None and fb_price == facts["price"]:
+            facts["currency"] = fb_currency
 
     return facts
 
