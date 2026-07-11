@@ -8,3 +8,6 @@ numpy>=1.24
 python-multipart>=0.0.6
 # Used by interpret/gradcam.py:overlay_heatmap for the Grad-CAM colormap.
 matplotlib>=3.7
+# Server-side image download for POST /predict-url (see app.py's SSRF
+# protections in _fetch_image_safely / validate_image_url).
+httpx>=0.25

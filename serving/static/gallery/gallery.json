@@ -1,0 +1,1298 @@
+[
+ {
+  "file": "car_000.jpg",
+  "brand": "Audi",
+  "model": "A3 Cabriolet",
+  "true_year": 2008,
+  "true_price_gbp": 5490,
+  "bodytype": "Convertible",
+  "color": "nan"
+ },
+ {
+  "file": "car_001.jpg",
+  "brand": "Audi",
+  "model": "A3 Cabriolet",
+  "true_year": 2010,
+  "true_price_gbp": 9250,
+  "bodytype": "Convertible",
+  "color": "Red"
+ },
+ {
+  "file": "car_002.jpg",
+  "brand": "Audi",
+  "model": "A3 Cabriolet",
+  "true_year": 2014,
+  "true_price_gbp": 14000,
+  "bodytype": "Convertible",
+  "color": "Grey"
+ },
+ {
+  "file": "car_003.jpg",
+  "brand": "Audi",
+  "model": "RS5",
+  "true_year": 2010,
+  "true_price_gbp": 23450,
+  "bodytype": "Coupe",
+  "color": "Black"
+ },
+ {
+  "file": "car_004.jpg",
+  "brand": "Audi",
+  "model": "RS5",
+  "true_year": 2011,
+  "true_price_gbp": 22995,
+  "bodytype": "Coupe",
+  "color": "Red"
+ },
+ {
+  "file": "car_005.jpg",
+  "brand": "Audi",
+  "model": "RS5",
+  "true_year": 2015,
+  "true_price_gbp": 35995,
+  "bodytype": "Coupe",
+  "color": "nan"
+ },
+ {
+  "file": "car_006.jpg",
+  "brand": "Audi",
+  "model": "RS6",
+  "true_year": 2003,
+  "true_price_gbp": 8995,
+  "bodytype": "Saloon",
+  "color": "Grey"
+ },
+ {
+  "file": "car_007.jpg",
+  "brand": "Audi",
+  "model": "RS6",
+  "true_year": 2009,
+  "true_price_gbp": 23495,
+  "bodytype": "Saloon",
+  "color": "Blue"
+ },
+ {
+  "file": "car_008.jpg",
+  "brand": "Audi",
+  "model": "S4",
+  "true_year": 2000,
+  "true_price_gbp": 6495,
+  "bodytype": "Saloon",
+  "color": "Blue"
+ },
+ {
+  "file": "car_009.jpg",
+  "brand": "Audi",
+  "model": "S4",
+  "true_year": 2010,
+  "true_price_gbp": 8995,
+  "bodytype": "Saloon",
+  "color": "Grey"
+ },
+ {
+  "file": "car_010.jpg",
+  "brand": "Audi",
+  "model": "S4",
+  "true_year": 2015,
+  "true_price_gbp": 25995,
+  "bodytype": "Saloon",
+  "color": "Blue"
+ },
+ {
+  "file": "car_011.jpg",
+  "brand": "BMW",
+  "model": "2 Series Active Tourer",
+  "true_year": 2014,
+  "true_price_gbp": 13000,
+  "bodytype": "MPV",
+  "color": "Grey"
+ },
+ {
+  "file": "car_012.jpg",
+  "brand": "BMW",
+  "model": "2 Series Active Tourer",
+  "true_year": 2015,
+  "true_price_gbp": 13380,
+  "bodytype": "MPV",
+  "color": "Blue"
+ },
+ {
+  "file": "car_013.jpg",
+  "brand": "BMW",
+  "model": "2 Series Active Tourer",
+  "true_year": 2016,
+  "true_price_gbp": 17995,
+  "bodytype": "MPV",
+  "color": "Red"
+ },
+ {
+  "file": "car_014.jpg",
+  "brand": "BMW",
+  "model": "2 Series Gran Tourer",
+  "true_year": 2016,
+  "true_price_gbp": 16495,
+  "bodytype": "MPV",
+  "color": "Black"
+ },
+ {
+  "file": "car_015.jpg",
+  "brand": "BMW",
+  "model": "2 Series Gran Tourer",
+  "true_year": 2016,
+  "true_price_gbp": 21999,
+  "bodytype": "MPV",
+  "color": "Blue"
+ },
+ {
+  "file": "car_016.jpg",
+  "brand": "BMW",
+  "model": "2 Series Gran Tourer",
+  "true_year": 2017,
+  "true_price_gbp": 23999,
+  "bodytype": "MPV",
+  "color": "Grey"
+ },
+ {
+  "file": "car_017.jpg",
+  "brand": "BMW",
+  "model": "5 Series Gran Turismo",
+  "true_year": 2010,
+  "true_price_gbp": 11975,
+  "bodytype": "Hatchback",
+  "color": "Silver"
+ },
+ {
+  "file": "car_018.jpg",
+  "brand": "BMW",
+  "model": "5 Series Gran Turismo",
+  "true_year": 2012,
+  "true_price_gbp": 13779,
+  "bodytype": "Hatchback",
+  "color": "Silver"
+ },
+ {
+  "file": "car_019.jpg",
+  "brand": "BMW",
+  "model": "5 Series Gran Turismo",
+  "true_year": 2013,
+  "true_price_gbp": 17300,
+  "bodytype": "Hatchback",
+  "color": "Blue"
+ },
+ {
+  "file": "car_020.jpg",
+  "brand": "BMW",
+  "model": "6 Series Gran Coupe",
+  "true_year": 2013,
+  "true_price_gbp": 20990,
+  "bodytype": "Coupe",
+  "color": "White"
+ },
+ {
+  "file": "car_021.jpg",
+  "brand": "BMW",
+  "model": "6 Series Gran Coupe",
+  "true_year": 2015,
+  "true_price_gbp": 24498,
+  "bodytype": "Coupe",
+  "color": "White"
+ },
+ {
+  "file": "car_022.jpg",
+  "brand": "BMW",
+  "model": "6 Series Gran Coupe",
+  "true_year": 2016,
+  "true_price_gbp": 28995,
+  "bodytype": "Coupe",
+  "color": "Grey"
+ },
+ {
+  "file": "car_023.jpg",
+  "brand": "Chevrolet",
+  "model": "Lacetti",
+  "true_year": 2006,
+  "true_price_gbp": 1295,
+  "bodytype": "Hatchback",
+  "color": "Silver"
+ },
+ {
+  "file": "car_024.jpg",
+  "brand": "Chevrolet",
+  "model": "Lacetti",
+  "true_year": 2008,
+  "true_price_gbp": 1495,
+  "bodytype": "Estate",
+  "color": "Black"
+ },
+ {
+  "file": "car_025.jpg",
+  "brand": "Chevrolet",
+  "model": "Lacetti",
+  "true_year": 2008,
+  "true_price_gbp": 799,
+  "bodytype": "Hatchback",
+  "color": "Silver"
+ },
+ {
+  "file": "car_026.jpg",
+  "brand": "Citroen",
+  "model": "DS4",
+  "true_year": 2011,
+  "true_price_gbp": 5950,
+  "bodytype": "Hatchback",
+  "color": "White"
+ },
+ {
+  "file": "car_027.jpg",
+  "brand": "Citroen",
+  "model": "DS4",
+  "true_year": 2014,
+  "true_price_gbp": 6990,
+  "bodytype": "Hatchback",
+  "color": "Purple"
+ },
+ {
+  "file": "car_028.jpg",
+  "brand": "Citroen",
+  "model": "DS4",
+  "true_year": 2015,
+  "true_price_gbp": 9295,
+  "bodytype": "Hatchback",
+  "color": "White"
+ },
+ {
+  "file": "car_029.jpg",
+  "brand": "Daewoo",
+  "model": "Kalos",
+  "true_year": 2003,
+  "true_price_gbp": 650,
+  "bodytype": "Hatchback",
+  "color": "Blue"
+ },
+ {
+  "file": "car_030.jpg",
+  "brand": "Dodge",
+  "model": "Caliber",
+  "true_year": 2006,
+  "true_price_gbp": 1990,
+  "bodytype": "Hatchback",
+  "color": "Black"
+ },
+ {
+  "file": "car_031.jpg",
+  "brand": "Dodge",
+  "model": "Caliber",
+  "true_year": 2007,
+  "true_price_gbp": 3490,
+  "bodytype": "Hatchback",
+  "color": "nan"
+ },
+ {
+  "file": "car_032.jpg",
+  "brand": "Dodge",
+  "model": "Caliber",
+  "true_year": 2008,
+  "true_price_gbp": 1000,
+  "bodytype": "Hatchback",
+  "color": "nan"
+ },
+ {
+  "file": "car_033.jpg",
+  "brand": "Ferrari",
+  "model": "458",
+  "true_year": 2010,
+  "true_price_gbp": 142990,
+  "bodytype": "Coupe",
+  "color": "Black"
+ },
+ {
+  "file": "car_034.jpg",
+  "brand": "Ferrari",
+  "model": "458",
+  "true_year": 2012,
+  "true_price_gbp": 179995,
+  "bodytype": "Convertible",
+  "color": "Red"
+ },
+ {
+  "file": "car_035.jpg",
+  "brand": "Ferrari",
+  "model": "458",
+  "true_year": 2014,
+  "true_price_gbp": 249995,
+  "bodytype": "Coupe",
+  "color": "nan"
+ },
+ {
+  "file": "car_036.jpg",
+  "brand": "Fiat",
+  "model": "124 Spider",
+  "true_year": 2016,
+  "true_price_gbp": 16975,
+  "bodytype": "Convertible",
+  "color": "Red"
+ },
+ {
+  "file": "car_037.jpg",
+  "brand": "Fiat",
+  "model": "124 Spider",
+  "true_year": 2016,
+  "true_price_gbp": 15250,
+  "bodytype": "Convertible",
+  "color": "Black"
+ },
+ {
+  "file": "car_038.jpg",
+  "brand": "Fiat",
+  "model": "124 Spider",
+  "true_year": 2017,
+  "true_price_gbp": 19995,
+  "bodytype": "Convertible",
+  "color": "Grey"
+ },
+ {
+  "file": "car_039.jpg",
+  "brand": "Fiat",
+  "model": "Stilo",
+  "true_year": 2003,
+  "true_price_gbp": 895,
+  "bodytype": "Hatchback",
+  "color": "Green"
+ },
+ {
+  "file": "car_040.jpg",
+  "brand": "Ford",
+  "model": "C-Max",
+  "true_year": 2007,
+  "true_price_gbp": 2475,
+  "bodytype": "MPV",
+  "color": "Black"
+ },
+ {
+  "file": "car_041.jpg",
+  "brand": "Ford",
+  "model": "C-Max",
+  "true_year": 2014,
+  "true_price_gbp": 7925,
+  "bodytype": "MPV",
+  "color": "White"
+ },
+ {
+  "file": "car_042.jpg",
+  "brand": "Ford",
+  "model": "C-Max",
+  "true_year": 2016,
+  "true_price_gbp": 9595,
+  "bodytype": "MPV",
+  "color": "Grey"
+ },
+ {
+  "file": "car_043.jpg",
+  "brand": "Ford",
+  "model": "Fiesta",
+  "true_year": 2006,
+  "true_price_gbp": 1695,
+  "bodytype": "Hatchback",
+  "color": "Black"
+ },
+ {
+  "file": "car_044.jpg",
+  "brand": "Ford",
+  "model": "Fiesta",
+  "true_year": 2011,
+  "true_price_gbp": 6150,
+  "bodytype": "Hatchback",
+  "color": "Purple"
+ },
+ {
+  "file": "car_045.jpg",
+  "brand": "Ford",
+  "model": "Fiesta",
+  "true_year": 2015,
+  "true_price_gbp": 9995,
+  "bodytype": "Hatchback",
+  "color": "Yellow"
+ },
+ {
+  "file": "car_046.jpg",
+  "brand": "Ford",
+  "model": "Ka",
+  "true_year": 2003,
+  "true_price_gbp": 500,
+  "bodytype": "Hatchback",
+  "color": "nan"
+ },
+ {
+  "file": "car_047.jpg",
+  "brand": "Ford",
+  "model": "Ka",
+  "true_year": 2012,
+  "true_price_gbp": 2950,
+  "bodytype": "Hatchback",
+  "color": "Red"
+ },
+ {
+  "file": "car_048.jpg",
+  "brand": "Ford",
+  "model": "Ka",
+  "true_year": 2014,
+  "true_price_gbp": 5430,
+  "bodytype": "Hatchback",
+  "color": "nan"
+ },
+ {
+  "file": "car_049.jpg",
+  "brand": "Ford",
+  "model": "Mondeo",
+  "true_year": 2010,
+  "true_price_gbp": 2280,
+  "bodytype": "Hatchback",
+  "color": "Black"
+ },
+ {
+  "file": "car_050.jpg",
+  "brand": "Ford",
+  "model": "Mondeo",
+  "true_year": 2013,
+  "true_price_gbp": 6990,
+  "bodytype": "Hatchback",
+  "color": "Black"
+ },
+ {
+  "file": "car_051.jpg",
+  "brand": "Ford",
+  "model": "Mondeo",
+  "true_year": 2014,
+  "true_price_gbp": 8695,
+  "bodytype": "Estate",
+  "color": "nan"
+ },
+ {
+  "file": "car_052.jpg",
+  "brand": "Hyundai",
+  "model": "Kona",
+  "true_year": 2017,
+  "true_price_gbp": 13969,
+  "bodytype": "SUV",
+  "color": "Black"
+ },
+ {
+  "file": "car_053.jpg",
+  "brand": "Hyundai",
+  "model": "Kona",
+  "true_year": 2017,
+  "true_price_gbp": 18970,
+  "bodytype": "SUV",
+  "color": "nan"
+ },
+ {
+  "file": "car_054.jpg",
+  "brand": "Hyundai",
+  "model": "Kona",
+  "true_year": 2017,
+  "true_price_gbp": 18990,
+  "bodytype": "SUV",
+  "color": "Grey"
+ },
+ {
+  "file": "car_055.jpg",
+  "brand": "Hyundai",
+  "model": "Santa Fe",
+  "true_year": 2003,
+  "true_price_gbp": 1099,
+  "bodytype": "SUV",
+  "color": "Black"
+ },
+ {
+  "file": "car_056.jpg",
+  "brand": "Hyundai",
+  "model": "Santa Fe",
+  "true_year": 2014,
+  "true_price_gbp": 16455,
+  "bodytype": "SUV",
+  "color": "Brown"
+ },
+ {
+  "file": "car_057.jpg",
+  "brand": "Hyundai",
+  "model": "Santa Fe",
+  "true_year": 2016,
+  "true_price_gbp": 22000,
+  "bodytype": "SUV",
+  "color": "Black"
+ },
+ {
+  "file": "car_058.jpg",
+  "brand": "Hyundai",
+  "model": "ix35",
+  "true_year": 2011,
+  "true_price_gbp": 7499,
+  "bodytype": "SUV",
+  "color": "Black"
+ },
+ {
+  "file": "car_059.jpg",
+  "brand": "Hyundai",
+  "model": "ix35",
+  "true_year": 2013,
+  "true_price_gbp": 8990,
+  "bodytype": "SUV",
+  "color": "Black"
+ },
+ {
+  "file": "car_060.jpg",
+  "brand": "Hyundai",
+  "model": "ix35",
+  "true_year": 2014,
+  "true_price_gbp": 9990,
+  "bodytype": "SUV",
+  "color": "Grey"
+ },
+ {
+  "file": "car_061.jpg",
+  "brand": "Infiniti",
+  "model": "Q70",
+  "true_year": 2014,
+  "true_price_gbp": 17995,
+  "bodytype": "Saloon",
+  "color": "Black"
+ },
+ {
+  "file": "car_062.jpg",
+  "brand": "Infiniti",
+  "model": "Q70",
+  "true_year": 2016,
+  "true_price_gbp": 17999,
+  "bodytype": "Saloon",
+  "color": "Black"
+ },
+ {
+  "file": "car_063.jpg",
+  "brand": "Infiniti",
+  "model": "Q70",
+  "true_year": 2017,
+  "true_price_gbp": 18995,
+  "bodytype": "Saloon",
+  "color": "Black"
+ },
+ {
+  "file": "car_064.jpg",
+  "brand": "Jeep",
+  "model": "Grand Cherokee",
+  "true_year": 2000,
+  "true_price_gbp": 1990,
+  "bodytype": "SUV",
+  "color": "Black"
+ },
+ {
+  "file": "car_065.jpg",
+  "brand": "Jeep",
+  "model": "Grand Cherokee",
+  "true_year": 2014,
+  "true_price_gbp": 19450,
+  "bodytype": "SUV",
+  "color": "Grey"
+ },
+ {
+  "file": "car_066.jpg",
+  "brand": "Jeep",
+  "model": "Grand Cherokee",
+  "true_year": 2015,
+  "true_price_gbp": 22980,
+  "bodytype": "SUV",
+  "color": "Grey"
+ },
+ {
+  "file": "car_067.jpg",
+  "brand": "Kia",
+  "model": "Sportage",
+  "true_year": 2007,
+  "true_price_gbp": 3500,
+  "bodytype": "SUV",
+  "color": "Black"
+ },
+ {
+  "file": "car_068.jpg",
+  "brand": "Kia",
+  "model": "Sportage",
+  "true_year": 2013,
+  "true_price_gbp": 7981,
+  "bodytype": "SUV",
+  "color": "Gold"
+ },
+ {
+  "file": "car_069.jpg",
+  "brand": "Kia",
+  "model": "Sportage",
+  "true_year": 2016,
+  "true_price_gbp": 13299,
+  "bodytype": "SUV",
+  "color": "nan"
+ },
+ {
+  "file": "car_070.jpg",
+  "brand": "Kia",
+  "model": "Venga",
+  "true_year": 2012,
+  "true_price_gbp": 4995,
+  "bodytype": "Hatchback",
+  "color": "Black"
+ },
+ {
+  "file": "car_071.jpg",
+  "brand": "Kia",
+  "model": "Venga",
+  "true_year": 2013,
+  "true_price_gbp": 4495,
+  "bodytype": "Hatchback",
+  "color": "Black"
+ },
+ {
+  "file": "car_072.jpg",
+  "brand": "Kia",
+  "model": "Venga",
+  "true_year": 2014,
+  "true_price_gbp": 4949,
+  "bodytype": "Hatchback",
+  "color": "Red"
+ },
+ {
+  "file": "car_073.jpg",
+  "brand": "Land Rover",
+  "model": "Discovery 4",
+  "true_year": 2009,
+  "true_price_gbp": 16999,
+  "bodytype": "SUV",
+  "color": "Black"
+ },
+ {
+  "file": "car_074.jpg",
+  "brand": "Land Rover",
+  "model": "Discovery 4",
+  "true_year": 2010,
+  "true_price_gbp": 15995,
+  "bodytype": "SUV",
+  "color": "Grey"
+ },
+ {
+  "file": "car_075.jpg",
+  "brand": "Land Rover",
+  "model": "Discovery 4",
+  "true_year": 2013,
+  "true_price_gbp": 29495,
+  "bodytype": "SUV",
+  "color": "Grey"
+ },
+ {
+  "file": "car_076.jpg",
+  "brand": "Lexus",
+  "model": "CT 200h",
+  "true_year": 2011,
+  "true_price_gbp": 6995,
+  "bodytype": "Hatchback",
+  "color": "Black"
+ },
+ {
+  "file": "car_077.jpg",
+  "brand": "Lexus",
+  "model": "RX 450h",
+  "true_year": 2011,
+  "true_price_gbp": 18900,
+  "bodytype": "SUV",
+  "color": "Black"
+ },
+ {
+  "file": "car_078.jpg",
+  "brand": "Lexus",
+  "model": "RX 450h",
+  "true_year": 2014,
+  "true_price_gbp": 18500,
+  "bodytype": "SUV",
+  "color": "Silver"
+ },
+ {
+  "file": "car_079.jpg",
+  "brand": "Lexus",
+  "model": "Rx Unspecified",
+  "true_year": 2006,
+  "true_price_gbp": 6995,
+  "bodytype": "Estate",
+  "color": "Silver"
+ },
+ {
+  "file": "car_080.jpg",
+  "brand": "Maserati",
+  "model": "Ghibli",
+  "true_year": 2014,
+  "true_price_gbp": 29999,
+  "bodytype": "Saloon",
+  "color": "Blue"
+ },
+ {
+  "file": "car_081.jpg",
+  "brand": "Maserati",
+  "model": "Ghibli",
+  "true_year": 2015,
+  "true_price_gbp": 27940,
+  "bodytype": "Saloon",
+  "color": "White"
+ },
+ {
+  "file": "car_082.jpg",
+  "brand": "Maserati",
+  "model": "Ghibli",
+  "true_year": 2016,
+  "true_price_gbp": 28990,
+  "bodytype": "Saloon",
+  "color": "Blue"
+ },
+ {
+  "file": "car_083.jpg",
+  "brand": "Mercedes-Benz",
+  "model": "S Class",
+  "true_year": 2012,
+  "true_price_gbp": 13985,
+  "bodytype": "Limousine",
+  "color": "Black"
+ },
+ {
+  "file": "car_084.jpg",
+  "brand": "Mercedes-Benz",
+  "model": "S Class",
+  "true_year": 2014,
+  "true_price_gbp": 42990,
+  "bodytype": "Saloon",
+  "color": "Blue"
+ },
+ {
+  "file": "car_085.jpg",
+  "brand": "Mercedes-Benz",
+  "model": "S Class",
+  "true_year": 2015,
+  "true_price_gbp": 33791,
+  "bodytype": "Saloon",
+  "color": "Silver"
+ },
+ {
+  "file": "car_086.jpg",
+  "brand": "Nissan",
+  "model": "Leaf",
+  "true_year": 2012,
+  "true_price_gbp": 7379,
+  "bodytype": "Hatchback",
+  "color": "Silver"
+ },
+ {
+  "file": "car_087.jpg",
+  "brand": "Nissan",
+  "model": "Leaf",
+  "true_year": 2014,
+  "true_price_gbp": 9675,
+  "bodytype": "Hatchback",
+  "color": "Grey"
+ },
+ {
+  "file": "car_088.jpg",
+  "brand": "Nissan",
+  "model": "Leaf",
+  "true_year": 2016,
+  "true_price_gbp": 14141,
+  "bodytype": "Hatchback",
+  "color": "Black"
+ },
+ {
+  "file": "car_089.jpg",
+  "brand": "Nissan",
+  "model": "NV200",
+  "true_year": 2010,
+  "true_price_gbp": 6990,
+  "bodytype": "MPV",
+  "color": "Red"
+ },
+ {
+  "file": "car_090.jpg",
+  "brand": "Nissan",
+  "model": "NV200",
+  "true_year": 2016,
+  "true_price_gbp": 13495,
+  "bodytype": "MPV",
+  "color": "White"
+ },
+ {
+  "file": "car_091.jpg",
+  "brand": "Nissan",
+  "model": "NV200",
+  "true_year": 2016,
+  "true_price_gbp": 20267,
+  "bodytype": "Estate",
+  "color": "Black"
+ },
+ {
+  "file": "car_092.jpg",
+  "brand": "Nissan",
+  "model": "X-Trail",
+  "true_year": 2009,
+  "true_price_gbp": 3649,
+  "bodytype": "SUV",
+  "color": "Grey"
+ },
+ {
+  "file": "car_093.jpg",
+  "brand": "Nissan",
+  "model": "X-Trail",
+  "true_year": 2012,
+  "true_price_gbp": 10619,
+  "bodytype": "SUV",
+  "color": "Beige"
+ },
+ {
+  "file": "car_094.jpg",
+  "brand": "Nissan",
+  "model": "X-Trail",
+  "true_year": 2014,
+  "true_price_gbp": 11300,
+  "bodytype": "SUV",
+  "color": "Black"
+ },
+ {
+  "file": "car_095.jpg",
+  "brand": "Peugeot",
+  "model": "308",
+  "true_year": 2007,
+  "true_price_gbp": 2795,
+  "bodytype": "Hatchback",
+  "color": "Black"
+ },
+ {
+  "file": "car_096.jpg",
+  "brand": "Peugeot",
+  "model": "308",
+  "true_year": 2013,
+  "true_price_gbp": 4695,
+  "bodytype": "Hatchback",
+  "color": "Blue"
+ },
+ {
+  "file": "car_097.jpg",
+  "brand": "Peugeot",
+  "model": "308",
+  "true_year": 2014,
+  "true_price_gbp": 9000,
+  "bodytype": "Hatchback",
+  "color": "Brown"
+ },
+ {
+  "file": "car_098.jpg",
+  "brand": "Peugeot",
+  "model": "407",
+  "true_year": 2009,
+  "true_price_gbp": 995,
+  "bodytype": "Saloon",
+  "color": "White"
+ },
+ {
+  "file": "car_099.jpg",
+  "brand": "Peugeot",
+  "model": "407",
+  "true_year": 2009,
+  "true_price_gbp": 1395,
+  "bodytype": "Saloon",
+  "color": "Silver"
+ },
+ {
+  "file": "car_100.jpg",
+  "brand": "Peugeot",
+  "model": "508",
+  "true_year": 2011,
+  "true_price_gbp": 3795,
+  "bodytype": "Saloon",
+  "color": "Blue"
+ },
+ {
+  "file": "car_101.jpg",
+  "brand": "Peugeot",
+  "model": "508",
+  "true_year": 2013,
+  "true_price_gbp": 7450,
+  "bodytype": "Saloon",
+  "color": "Black"
+ },
+ {
+  "file": "car_102.jpg",
+  "brand": "Peugeot",
+  "model": "508",
+  "true_year": 2014,
+  "true_price_gbp": 8995,
+  "bodytype": "Saloon",
+  "color": "Blue"
+ },
+ {
+  "file": "car_103.jpg",
+  "brand": "Porsche",
+  "model": "Cayman",
+  "true_year": 2009,
+  "true_price_gbp": 17995,
+  "bodytype": "Coupe",
+  "color": "Orange"
+ },
+ {
+  "file": "car_104.jpg",
+  "brand": "Porsche",
+  "model": "Cayman",
+  "true_year": 2013,
+  "true_price_gbp": 30995,
+  "bodytype": "Coupe",
+  "color": "Silver"
+ },
+ {
+  "file": "car_105.jpg",
+  "brand": "Porsche",
+  "model": "Cayman",
+  "true_year": 2014,
+  "true_price_gbp": 31499,
+  "bodytype": "Coupe",
+  "color": "Black"
+ },
+ {
+  "file": "car_106.jpg",
+  "brand": "Renault",
+  "model": "Kadjar",
+  "true_year": 2016,
+  "true_price_gbp": 12210,
+  "bodytype": "SUV",
+  "color": "Red"
+ },
+ {
+  "file": "car_107.jpg",
+  "brand": "Renault",
+  "model": "Kangoo",
+  "true_year": 2006,
+  "true_price_gbp": 2490,
+  "bodytype": "MPV",
+  "color": "Red"
+ },
+ {
+  "file": "car_108.jpg",
+  "brand": "Renault",
+  "model": "Zoe",
+  "true_year": 2013,
+  "true_price_gbp": 5250,
+  "bodytype": "Hatchback",
+  "color": "Black"
+ },
+ {
+  "file": "car_109.jpg",
+  "brand": "Renault",
+  "model": "Zoe",
+  "true_year": 2017,
+  "true_price_gbp": 11000,
+  "bodytype": "Hatchback",
+  "color": "Black"
+ },
+ {
+  "file": "car_110.jpg",
+  "brand": "Rolls-Royce",
+  "model": "Wraith",
+  "true_year": 2014,
+  "true_price_gbp": 129950,
+  "bodytype": "Coupe",
+  "color": "White"
+ },
+ {
+  "file": "car_111.jpg",
+  "brand": "Rolls-Royce",
+  "model": "Wraith",
+  "true_year": 2014,
+  "true_price_gbp": 149950,
+  "bodytype": "Coupe",
+  "color": "Black"
+ },
+ {
+  "file": "car_112.jpg",
+  "brand": "SEAT",
+  "model": "Toledo",
+  "true_year": 2013,
+  "true_price_gbp": 6495,
+  "bodytype": "Hatchback",
+  "color": "Black"
+ },
+ {
+  "file": "car_113.jpg",
+  "brand": "SEAT",
+  "model": "Toledo",
+  "true_year": 2014,
+  "true_price_gbp": 6999,
+  "bodytype": "Hatchback",
+  "color": "White"
+ },
+ {
+  "file": "car_114.jpg",
+  "brand": "SEAT",
+  "model": "Toledo",
+  "true_year": 2014,
+  "true_price_gbp": 4995,
+  "bodytype": "Hatchback",
+  "color": "Silver"
+ },
+ {
+  "file": "car_115.jpg",
+  "brand": "Saab",
+  "model": "09-Mar",
+  "true_year": 2009,
+  "true_price_gbp": 3490,
+  "bodytype": "Saloon",
+  "color": "Black"
+ },
+ {
+  "file": "car_116.jpg",
+  "brand": "Saab",
+  "model": "09-Mar",
+  "true_year": 2009,
+  "true_price_gbp": 4199,
+  "bodytype": "Estate",
+  "color": "Blue"
+ },
+ {
+  "file": "car_117.jpg",
+  "brand": "Saab",
+  "model": "09-Mar",
+  "true_year": 2011,
+  "true_price_gbp": 6995,
+  "bodytype": "Saloon",
+  "color": "Blue"
+ },
+ {
+  "file": "car_118.jpg",
+  "brand": "Saab",
+  "model": "09-May",
+  "true_year": 2000,
+  "true_price_gbp": 795,
+  "bodytype": "Estate",
+  "color": "Blue"
+ },
+ {
+  "file": "car_119.jpg",
+  "brand": "Saab",
+  "model": "09-May",
+  "true_year": 2009,
+  "true_price_gbp": 2494,
+  "bodytype": "Estate",
+  "color": "nan"
+ },
+ {
+  "file": "car_120.jpg",
+  "brand": "Saab",
+  "model": "09-May",
+  "true_year": 2010,
+  "true_price_gbp": 5495,
+  "bodytype": "Saloon",
+  "color": "Silver"
+ },
+ {
+  "file": "car_121.jpg",
+  "brand": "Smart",
+  "model": "forfour",
+  "true_year": 2015,
+  "true_price_gbp": 5999,
+  "bodytype": "Hatchback",
+  "color": "Red"
+ },
+ {
+  "file": "car_122.jpg",
+  "brand": "Smart",
+  "model": "forfour",
+  "true_year": 2016,
+  "true_price_gbp": 6680,
+  "bodytype": "Hatchback",
+  "color": "Grey"
+ },
+ {
+  "file": "car_123.jpg",
+  "brand": "Smart",
+  "model": "forfour",
+  "true_year": 2016,
+  "true_price_gbp": 7895,
+  "bodytype": "Hatchback",
+  "color": "Red"
+ },
+ {
+  "file": "car_124.jpg",
+  "brand": "Ssangyong",
+  "model": "Rexton",
+  "true_year": 2017,
+  "true_price_gbp": 21990,
+  "bodytype": "SUV",
+  "color": "Grey"
+ },
+ {
+  "file": "car_125.jpg",
+  "brand": "Ssangyong",
+  "model": "Rodius",
+  "true_year": 2006,
+  "true_price_gbp": 2990,
+  "bodytype": "MPV",
+  "color": "Silver"
+ },
+ {
+  "file": "car_126.jpg",
+  "brand": "Ssangyong",
+  "model": "Rodius",
+  "true_year": 2009,
+  "true_price_gbp": 2995,
+  "bodytype": "MPV",
+  "color": "Blue"
+ },
+ {
+  "file": "car_127.jpg",
+  "brand": "Subaru",
+  "model": "Impreza",
+  "true_year": 2007,
+  "true_price_gbp": 3650,
+  "bodytype": "Hatchback",
+  "color": "Grey"
+ },
+ {
+  "file": "car_128.jpg",
+  "brand": "Subaru",
+  "model": "Impreza",
+  "true_year": 2008,
+  "true_price_gbp": 9400,
+  "bodytype": "Hatchback",
+  "color": "Grey"
+ },
+ {
+  "file": "car_129.jpg",
+  "brand": "Subaru",
+  "model": "Impreza",
+  "true_year": 2009,
+  "true_price_gbp": 8490,
+  "bodytype": "Hatchback",
+  "color": "Silver"
+ },
+ {
+  "file": "car_130.jpg",
+  "brand": "Toyota",
+  "model": "Noah",
+  "true_year": 2006,
+  "true_price_gbp": 5250,
+  "bodytype": "MPV",
+  "color": "Black"
+ },
+ {
+  "file": "car_131.jpg",
+  "brand": "Vauxhall",
+  "model": "Antara",
+  "true_year": 2008,
+  "true_price_gbp": 4495,
+  "bodytype": "SUV",
+  "color": "Silver"
+ },
+ {
+  "file": "car_132.jpg",
+  "brand": "Vauxhall",
+  "model": "Antara",
+  "true_year": 2009,
+  "true_price_gbp": 5999,
+  "bodytype": "SUV",
+  "color": "Black"
+ },
+ {
+  "file": "car_133.jpg",
+  "brand": "Vauxhall",
+  "model": "Antara",
+  "true_year": 2011,
+  "true_price_gbp": 7683,
+  "bodytype": "SUV",
+  "color": "Black"
+ },
+ {
+  "file": "car_134.jpg",
+  "brand": "Vauxhall",
+  "model": "Mokka X",
+  "true_year": 2016,
+  "true_price_gbp": 12490,
+  "bodytype": "SUV",
+  "color": "Silver"
+ },
+ {
+  "file": "car_135.jpg",
+  "brand": "Vauxhall",
+  "model": "Mokka X",
+  "true_year": 2017,
+  "true_price_gbp": 15999,
+  "bodytype": "SUV",
+  "color": "White"
+ },
+ {
+  "file": "car_136.jpg",
+  "brand": "Vauxhall",
+  "model": "Tigra",
+  "true_year": 2006,
+  "true_price_gbp": 1780,
+  "bodytype": "Convertible",
+  "color": "Black"
+ },
+ {
+  "file": "car_137.jpg",
+  "brand": "Volkswagen",
+  "model": "Caravelle",
+  "true_year": 2011,
+  "true_price_gbp": 21000,
+  "bodytype": "MPV",
+  "color": "Silver"
+ },
+ {
+  "file": "car_138.jpg",
+  "brand": "Volkswagen",
+  "model": "Caravelle",
+  "true_year": 2011,
+  "true_price_gbp": 34495,
+  "bodytype": "MPV",
+  "color": "Black"
+ },
+ {
+  "file": "car_139.jpg",
+  "brand": "Volkswagen",
+  "model": "Caravelle",
+  "true_year": 2012,
+  "true_price_gbp": 19975,
+  "bodytype": "MPV",
+  "color": "Blue"
+ },
+ {
+  "file": "car_140.jpg",
+  "brand": "Volkswagen",
+  "model": "Tiguan Allspace",
+  "true_year": 2017,
+  "true_price_gbp": 30999,
+  "bodytype": "SUV",
+  "color": "Blue"
+ },
+ {
+  "file": "car_141.jpg",
+  "brand": "Volkswagen",
+  "model": "Transporter",
+  "true_year": 2008,
+  "true_price_gbp": 9250,
+  "bodytype": "Combi Van",
+  "color": "White"
+ },
+ {
+  "file": "car_142.jpg",
+  "brand": "Volkswagen",
+  "model": "Transporter",
+  "true_year": 2012,
+  "true_price_gbp": 15500,
+  "bodytype": "Combi Van",
+  "color": "Brown"
+ },
+ {
+  "file": "car_143.jpg",
+  "brand": "Volkswagen",
+  "model": "Transporter",
+  "true_year": 2013,
+  "true_price_gbp": 18750,
+  "bodytype": "MPV",
+  "color": "Red"
+ }
+]

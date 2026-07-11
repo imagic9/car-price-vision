@@ -2,9 +2,10 @@
 <html lang="en">
 <head>
   <meta charset="UTF-8" />
-  <title>car-price-vision — demo</title>
+  <title>Car Price Vision — year &amp; price from a photo</title>
   <meta name="viewport" content="width=device-width, initial-scale=1" />
-  <meta name="description" content="Predict a car's manufacture year and market price from a single photo, with Grad-CAM interpretability." />
+  <meta name="description" content="Predicts a car's model year and UK market price from a single photo, and shows where the model looked with Grad-CAM." />
+  <link rel="icon" type="image/svg+xml" href="data:image/svg+xml;base64,PHN2ZyB4bWxucz0naHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmcnIHZpZXdCb3g9JzAgMCA2NCA0MCc+CjxwYXRoIGZpbGw9JyNiNTQ3MmInIGQ9J000IDMwIEw3IDE5IFE5IDEzIDE2IDEzIEwyMiAxMyBMMjcgOCBRMjkgNiAzMyA2IEw0NCA2IFE0OCA2IDUwIDEwIEw1NCAxOCBMNTggMTkgUTYxIDIwIDYxIDI0IEw2MSAzMCBaJy8+CjxyZWN0IHg9JzQnIHk9JzI4JyB3aWR0aD0nNTcnIGhlaWdodD0nNicgcng9JzInIGZpbGw9JyNiNTQ3MmInLz4KPGNpcmNsZSBjeD0nMTcnIGN5PSczMycgcj0nNicgZmlsbD0nIzFhMWExYScvPgo8Y2lyY2xlIGN4PScxNycgY3k9JzMzJyByPScyLjQnIGZpbGw9JyNlMmUwZGEnLz4KPGNpcmNsZSBjeD0nNDcnIGN5PSczMycgcj0nNicgZmlsbD0nIzFhMWExYScvPgo8Y2lyY2xlIGN4PSc0NycgY3k9JzMzJyByPScyLjQnIGZpbGw9JyNlMmUwZGEnLz4KPHBhdGggZmlsbD0nI2Y3ZjdmNScgb3BhY2l0eT0nMC41NScgZD0nTTI4IDkgTDMyIDkgUTM0IDkgMzQgMTEgTDM0IDE3IEwyNCAxNyBaJy8+CjxwYXRoIGZpbGw9JyNmN2Y3ZjUnIG9wYWNpdHk9JzAuNTUnIGQ9J00zNiA5IEw0MyA5IFE0NiA5IDQ3LjUgMTIgTDUwIDE3IEwzNiAxNyBaJy8+Cjwvc3ZnPgo=" />
   <style>
     :root {
       --bg: #f7f7f5;
@@ -14,10 +15,13 @@
       --border: #e2e0da;
       --accent: #b5472b;
       --accent-fg: #ffffff;
+      --accent-soft: #f4e2da;
       --banner-bg: #fbeee7;
       --banner-fg: #7a3418;
       --banner-border: #eecdb9;
       --code-bg: #f0efe9;
+      --skeleton-base: #eae8e2;
+      --skeleton-shine: #f7f6f2;
       --shadow: 0 1px 2px rgba(20, 20, 15, 0.04), 0 8px 24px rgba(20, 20, 15, 0.05);
     }
 
@@ -30,15 +34,27 @@
         --border: #34311f;
         --accent: #e08a5f;
         --accent-fg: #191308;
+        --accent-soft: #3a2a20;
         --banner-bg: #2c1e14;
         --banner-fg: #f2b48f;
         --banner-border: #4a3120;
         --code-bg: #26231a;
+        --skeleton-base: #2a271e;
+        --skeleton-shine: #34301f;
         --shadow: 0 1px 2px rgba(0, 0, 0, 0.3), 0 8px 24px rgba(0, 0, 0, 0.35);
       }
     }
 
     * { box-sizing: border-box; }
+
+    /* Several elements below set an explicit `display` (flex/block/grid) so
+       they need to override the UA default `[hidden] { display: none }` --
+       author-origin rules always beat UA-origin ones regardless of
+       specificity, so without this, toggling `.hidden = true` on e.g. a
+       flex card would silently do nothing. One global !important rule here
+       is simpler and more future-proof than chasing every such selector
+       individually. */
+    [hidden] { display: none !important; }
 
     body {
       font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Helvetica, Arial, sans-serif;
@@ -50,7 +66,7 @@
     }
 
     main {
-      max-width: 720px;
+      max-width: 760px;
       margin: 0 auto;
       padding: 3rem 1.25rem 4rem;
     }
@@ -103,6 +119,14 @@
     }
     .btn-link:hover { border-color: var(--accent); }
 
+    a, button, input, [tabindex] {
+      outline-offset: 2px;
+    }
+    a:focus-visible, button:focus-visible, input:focus-visible, [tabindex]:focus-visible {
+      outline: 2px solid var(--accent);
+      outline-offset: 2px;
+    }
+
     .card {
       background: var(--card-bg);
       border: 1px solid var(--border);
@@ -136,18 +160,109 @@
     }
     .banner strong { font-weight: 600; }
 
+    /* ---- Tabs ---- */
+    .tabs {
+      display: flex;
+      gap: 0.4rem;
+      margin-bottom: 1.25rem;
+      border-bottom: 1px solid var(--border);
+    }
+    .tab-btn {
+      background: none;
+      border: none;
+      color: var(--muted);
+      font-weight: 600;
+      font-size: 0.92rem;
+      padding: 0.6rem 0.2rem;
+      margin-bottom: -1px;
+      border-bottom: 2px solid transparent;
+      cursor: pointer;
+      border-radius: 4px 4px 0 0;
+    }
+    .tab-btn + .tab-btn { margin-left: 1.1rem; }
+    .tab-btn[aria-selected="true"] {
+      color: var(--fg);
+      border-bottom-color: var(--accent);
+    }
+    .tab-btn:hover { color: var(--fg); }
+
+    /* ---- Upload tab ---- */
     .dropzone {
       border: 1.5px dashed var(--border);
       border-radius: 10px;
       padding: 2rem 1rem;
       text-align: center;
       color: var(--muted);
-      transition: opacity 0.2s ease, border-color 0.15s ease;
+      cursor: pointer;
+      transition: border-color 0.15s ease, background 0.15s ease;
     }
-    .dropzone.enabled { border-color: var(--accent); cursor: pointer; }
-    .dropzone.disabled { opacity: 0.5; }
+    .dropzone:hover, .dropzone.dragover { border-color: var(--accent); background: var(--accent-soft); }
+    .dropzone.disabled { opacity: 0.5; cursor: not-allowed; pointer-events: none; }
+    .dropzone .icon { font-size: 1.6rem; margin-bottom: 0.4rem; }
+    .dropzone .hint-small { font-size: 0.8rem; margin-top: 0.35rem; opacity: 0.8; }
+    input[type="file"] { display: none; }
 
-    input[type="file"] { display: block; margin: 0 auto; max-width: 100%; }
+    /* ---- Gallery tab ---- */
+    .gallery-toolbar {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      margin-bottom: 0.85rem;
+      gap: 0.75rem;
+    }
+    .gallery-toolbar p { margin: 0; font-size: 0.85rem; color: var(--muted); }
+    .gallery-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fill, minmax(90px, 1fr));
+      gap: 0.6rem;
+    }
+    .thumb {
+      position: relative;
+      border: 1px solid var(--border);
+      border-radius: 8px;
+      overflow: hidden;
+      padding: 0;
+      cursor: pointer;
+      background: var(--code-bg);
+      aspect-ratio: 1 / 1;
+      display: block;
+    }
+    .thumb:hover, .thumb:focus-visible { border-color: var(--accent); }
+    .thumb img {
+      width: 100%;
+      height: 100%;
+      object-fit: cover;
+      display: block;
+    }
+    .thumb .thumb-caption {
+      position: absolute;
+      left: 0; right: 0; bottom: 0;
+      background: linear-gradient(to top, rgba(0,0,0,0.72), rgba(0,0,0,0));
+      color: #fff;
+      font-size: 0.62rem;
+      line-height: 1.2;
+      padding: 0.85rem 0.35rem 0.3rem;
+      text-align: left;
+    }
+    .gallery-empty, .gallery-loading {
+      color: var(--muted);
+      font-size: 0.9rem;
+      text-align: center;
+      padding: 1.5rem 0;
+    }
+
+    /* ---- URL tab ---- */
+    .url-row { display: flex; gap: 0.6rem; flex-wrap: wrap; }
+    .url-row input[type="text"] {
+      flex: 1 1 240px;
+      padding: 0.6rem 0.75rem;
+      border-radius: 8px;
+      border: 1px solid var(--border);
+      background: var(--bg);
+      color: var(--fg);
+      font-size: 0.92rem;
+    }
+    .field-hint { font-size: 0.8rem; color: var(--muted); margin: 0.6rem 0 0; }
 
     .actions {
       display: flex;
@@ -157,7 +272,7 @@
       flex-wrap: wrap;
     }
 
-    button {
+    button.primary {
       background: var(--accent);
       color: var(--accent-fg);
       border: none;
@@ -167,10 +282,200 @@
       font-size: 0.95rem;
       font-weight: 600;
     }
-    button:disabled { background: var(--border); color: var(--muted); cursor: not-allowed; }
+    button.primary:disabled { background: var(--border); color: var(--muted); cursor: not-allowed; }
 
-    .status { color: var(--muted); font-size: 0.9rem; }
+    button.secondary {
+      background: none;
+      color: var(--fg);
+      border: 1px solid var(--border);
+      padding: 0.4rem 0.9rem;
+      border-radius: 8px;
+      cursor: pointer;
+      font-size: 0.85rem;
+      font-weight: 600;
+    }
+    button.secondary:hover { border-color: var(--accent); }
+    button.secondary:disabled { opacity: 0.5; cursor: not-allowed; }
 
+    .status-line { color: var(--muted); font-size: 0.9rem; margin: 0; }
+
+    /* ---- Preview card ---- */
+    .preview-wrap {
+      position: relative;
+      width: 100%;
+      aspect-ratio: 4 / 3;
+      max-height: 360px;
+      border-radius: 10px;
+      overflow: hidden;
+      background: var(--code-bg);
+      border: 1px solid var(--border);
+    }
+    .preview-wrap img {
+      width: 100%;
+      height: 100%;
+      object-fit: contain;
+      background: var(--code-bg);
+      display: block;
+    }
+    .preview-wrap .preview-fallback {
+      position: absolute;
+      inset: 0;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      color: var(--muted);
+      font-size: 0.85rem;
+      text-align: center;
+      padding: 1rem;
+    }
+    .skeleton-overlay {
+      position: absolute;
+      inset: 0;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      background: linear-gradient(100deg, var(--skeleton-base) 30%, var(--skeleton-shine) 50%, var(--skeleton-base) 70%);
+      background-size: 240% 100%;
+      animation: shimmer 1.4s ease-in-out infinite;
+    }
+    @media (prefers-reduced-motion: reduce) {
+      .skeleton-overlay { animation: none; background-position: 0 0; }
+      .spinner { animation: none; }
+    }
+    @keyframes shimmer {
+      0% { background-position: 200% 0; }
+      100% { background-position: -40% 0; }
+    }
+    .spinner {
+      width: 2rem;
+      height: 2rem;
+      border-radius: 50%;
+      border: 3px solid var(--border);
+      border-top-color: var(--accent);
+      animation: spin 0.8s linear infinite;
+    }
+    @keyframes spin { to { transform: rotate(360deg); } }
+
+    /* ---- Result card ---- */
+    .demo-badge {
+      display: inline-block;
+      background: var(--accent);
+      color: var(--accent-fg);
+      font-size: 0.72rem;
+      font-weight: 700;
+      letter-spacing: 0.04em;
+      text-transform: uppercase;
+      padding: 0.2rem 0.55rem;
+      border-radius: 999px;
+      margin-bottom: 1rem;
+    }
+
+    .stat-grid {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 0.9rem;
+      margin-bottom: 1.5rem;
+    }
+    .stat-card {
+      border: 1px solid var(--border);
+      border-radius: 10px;
+      padding: 1rem 1.1rem;
+      background: var(--bg);
+    }
+    .stat-label {
+      font-size: 0.72rem;
+      text-transform: uppercase;
+      letter-spacing: 0.06em;
+      color: var(--muted);
+      margin: 0 0 0.35rem;
+    }
+    .stat-value {
+      font-size: 1.6rem;
+      font-weight: 700;
+      color: var(--accent);
+      margin: 0;
+      line-height: 1.2;
+    }
+    .stat-sub {
+      font-size: 0.78rem;
+      color: var(--muted);
+      margin: 0.3rem 0 0;
+    }
+
+    .photo-grid {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 1rem;
+      margin-bottom: 0.6rem;
+    }
+    @media (max-width: 560px) {
+      .photo-grid { grid-template-columns: 1fr; }
+      .stat-grid { grid-template-columns: 1fr; }
+    }
+    .photo-pane figure { margin: 0; }
+    .photo-pane img {
+      width: 100%;
+      aspect-ratio: 4 / 3;
+      object-fit: contain;
+      border-radius: 8px;
+      border: 1px solid var(--border);
+      background: var(--code-bg);
+      display: block;
+    }
+    .photo-pane figcaption {
+      font-size: 0.75rem;
+      color: var(--muted);
+      margin-top: 0.4rem;
+      text-align: center;
+    }
+    .gradcam-caption {
+      font-size: 0.85rem;
+      color: var(--muted);
+      margin: 0.25rem 0 1.4rem;
+      text-align: center;
+    }
+
+    .truth-table {
+      width: 100%;
+      border-collapse: collapse;
+      font-size: 0.88rem;
+      margin: 1rem 0 1.5rem;
+    }
+    .truth-table caption {
+      text-align: left;
+      font-size: 0.78rem;
+      text-transform: uppercase;
+      letter-spacing: 0.05em;
+      color: var(--muted);
+      margin-bottom: 0.5rem;
+    }
+    .truth-table th, .truth-table td {
+      text-align: left;
+      padding: 0.5rem 0.6rem;
+      border-bottom: 1px solid var(--border);
+    }
+    .truth-table th { color: var(--muted); font-weight: 600; font-size: 0.78rem; }
+    .diff-pill {
+      display: inline-block;
+      font-size: 0.72rem;
+      font-weight: 700;
+      padding: 0.1rem 0.5rem;
+      border-radius: 999px;
+      background: var(--border);
+      color: var(--muted);
+    }
+    .diff-pill.close { background: var(--accent-soft); color: var(--accent); }
+
+    details.raw {
+      margin-top: 0.5rem;
+      font-size: 0.85rem;
+    }
+    details.raw summary {
+      cursor: pointer;
+      color: var(--muted);
+      font-weight: 600;
+      padding: 0.3rem 0;
+    }
     pre {
       background: var(--code-bg);
       padding: 1rem;
@@ -178,37 +483,68 @@
       overflow-x: auto;
       white-space: pre-wrap;
       word-break: break-word;
-      font-size: 0.85rem;
+      font-size: 0.8rem;
+      margin: 0.5rem 0 0;
     }
 
-    img.gradcam {
-      max-width: 100%;
-      height: auto;
-      border-radius: 8px;
-      margin-top: 1rem;
-      display: block;
+    /* ---- Error card ---- */
+    .error-card {
+      display: flex;
+      gap: 0.65rem;
+      align-items: flex-start;
+      border-color: var(--banner-border);
+      background: var(--banner-bg);
+      color: var(--banner-fg);
     }
+    .error-card .icon { font-size: 1.1rem; line-height: 1; }
+    .error-card p { margin: 0; font-size: 0.9rem; line-height: 1.5; }
+    .error-card strong { display: block; margin-bottom: 0.15rem; }
 
-    h2 { font-size: 1rem; margin: 0 0 0.75rem; }
+    h2 { font-size: 1rem; margin: 0 0 0.9rem; }
 
     footer {
       margin-top: 2.5rem;
       color: var(--muted);
       font-size: 0.8rem;
-      line-height: 1.5;
+      line-height: 1.6;
     }
     footer a { color: inherit; }
+    footer .model-card {
+      border: 1px solid var(--border);
+      border-radius: 10px;
+      padding: 0.9rem 1.1rem;
+      background: var(--card-bg);
+    }
+    footer .model-card h3 {
+      font-size: 0.78rem;
+      text-transform: uppercase;
+      letter-spacing: 0.05em;
+      margin: 0 0 0.6rem;
+      color: var(--fg);
+    }
+    footer dl { margin: 0; display: grid; grid-template-columns: auto 1fr; gap: 0.25rem 0.75rem; }
+    footer dt { font-weight: 600; color: var(--fg); }
+    footer dd { margin: 0; }
+    footer .disclaimer { margin-top: 0.7rem; font-style: italic; }
+
+    .visually-hidden {
+      position: absolute;
+      width: 1px; height: 1px;
+      padding: 0; margin: -1px;
+      overflow: hidden;
+      clip: rect(0,0,0,0);
+      white-space: nowrap;
+      border: 0;
+    }
   </style>
 </head>
 <body>
   <main>
     <header>
-      <span class="eyebrow">car-price-vision</span>
-      <h1>What's this car worth — and how old is it?</h1>
+      <span class="eyebrow">Car Price Vision</span>
+      <h1>Car Price Vision</h1>
       <p class="pitch">
-        Upload a photo of a car and get a predicted manufacture year and
-        estimated market price, plus a Grad-CAM overlay showing which parts
-        of the image the model actually used to make that call.
+        Predicts a car's model year and UK market price from a single photo — and shows where the model looked.
       </p>
       <div class="links">
         <a class="btn-link" href="https://github.com/imagic9/car-price-vision" target="_blank" rel="noopener">
@@ -220,113 +556,648 @@
     <section class="card">
       <div id="comingSoonBanner" class="banner" style="display: none;">
         <span class="dot"></span>
-        <span><strong>Demo coming soon</strong> — the model is still in training. The upload UI below will light up automatically once it's live.</span>
+        <span><strong>Demo coming soon</strong> — the model is still in training. This form will light up automatically once it's live.</span>
       </div>
 
-      <div id="dropzone" class="dropzone disabled">
+      <div class="tabs" role="tablist" aria-label="Choose an input method">
+        <button class="tab-btn" id="tabBtnUpload" role="tab" aria-selected="true" aria-controls="panelUpload" data-tab="upload">Upload</button>
+        <button class="tab-btn" id="tabBtnGallery" role="tab" aria-selected="false" aria-controls="panelGallery" data-tab="gallery" hidden>Gallery</button>
+        <button class="tab-btn" id="tabBtnUrl" role="tab" aria-selected="false" aria-controls="panelUrl" data-tab="url">From URL</button>
+      </div>
+
+      <div class="tab-panel" id="panelUpload" role="tabpanel" aria-labelledby="tabBtnUpload">
+        <div id="dropzone" class="dropzone disabled" role="button" tabindex="0" aria-disabled="true">
+          <div class="icon" aria-hidden="true">📷</div>
+          <p class="status" id="dropHint">Waiting on the trained model…</p>
+          <p class="hint-small">Drag &amp; drop, click to browse, or paste (Ctrl/Cmd+V) a photo.</p>
+        </div>
         <input type="file" id="fileInput" accept="image/*" disabled />
-        <p class="status" id="dropHint">Waiting on the trained model…</p>
+      </div>
+
+      <div class="tab-panel" id="panelGallery" role="tabpanel" aria-labelledby="tabBtnGallery" hidden>
+        <div class="gallery-toolbar">
+          <p>Try one of our sample photos — click a thumbnail to predict instantly.</p>
+          <button class="secondary" id="shuffleBtn" type="button">Shuffle</button>
+        </div>
+        <p class="gallery-loading" id="galleryLoading">Loading gallery…</p>
+        <p class="gallery-empty" id="galleryEmpty" hidden>No sample gallery on this server yet — try Upload or From URL instead.</p>
+        <div class="gallery-grid" id="galleryGrid"></div>
+      </div>
+
+      <div class="tab-panel" id="panelUrl" role="tabpanel" aria-labelledby="tabBtnUrl" hidden>
+        <div class="url-row">
+          <input type="text" id="urlInput" placeholder="https://example.com/car-photo.jpg" disabled aria-label="Image URL" />
+          <button class="primary" id="urlPredictBtn" disabled type="button">Fetch &amp; Predict</button>
+        </div>
+        <p class="field-hint">The image is downloaded server-side before prediction — nothing is fetched from your browser.</p>
       </div>
 
       <div class="actions">
-        <button id="predictBtn" disabled>Predict</button>
-        <p id="status" class="status"></p>
+        <p id="status" class="status-line"></p>
       </div>
     </section>
 
-    <div class="card" id="resultCard" style="display: none;">
+    <section class="card" id="previewCard" hidden>
+      <div class="preview-wrap" id="previewWrap">
+        <img id="previewImg" alt="Selected car photo" hidden />
+        <div class="preview-fallback" id="previewFallback" hidden>Image preview unavailable — prediction still runs on the server.</div>
+        <div class="skeleton-overlay" id="skeletonOverlay" hidden>
+          <div class="spinner" role="status" aria-label="Predicting"></div>
+        </div>
+      </div>
+    </section>
+
+    <section class="card" id="resultCard" hidden>
+      <span class="demo-badge" id="demoBadge" hidden>Demo render</span>
       <h2>Result</h2>
-      <pre id="resultJson"></pre>
-      <img id="gradcamImg" class="gradcam" style="display: none;" alt="Grad-CAM overlay" />
-    </div>
+
+      <div class="stat-grid">
+        <div class="stat-card">
+          <p class="stat-label">Model year</p>
+          <p class="stat-value" id="yearValue">—</p>
+          <p class="stat-sub" id="yearError"></p>
+        </div>
+        <div class="stat-card">
+          <p class="stat-label">Estimated price</p>
+          <p class="stat-value" id="priceValue">—</p>
+          <p class="stat-sub" id="priceError"></p>
+        </div>
+      </div>
+
+      <div class="photo-grid">
+        <div class="photo-pane">
+          <figure>
+            <img id="resultPhotoImg" alt="Uploaded car photo" />
+            <figcaption>Original photo</figcaption>
+          </figure>
+        </div>
+        <div class="photo-pane">
+          <figure>
+            <img id="resultGradcamImg" alt="Grad-CAM attention overlay" />
+            <figcaption>Grad-CAM overlay</figcaption>
+          </figure>
+        </div>
+      </div>
+      <p class="gradcam-caption">Warmer regions contributed more to the prediction.</p>
+
+      <table class="truth-table" id="truthTable" hidden>
+        <caption>Ground truth (this is a sample gallery photo)</caption>
+        <thead>
+          <tr><th></th><th>Predicted</th><th>Actual</th><th>Diff</th></tr>
+        </thead>
+        <tbody>
+          <tr>
+            <td>Year</td>
+            <td id="truthYearPred"></td>
+            <td id="truthYearActual"></td>
+            <td><span class="diff-pill" id="truthYearDiff"></span></td>
+          </tr>
+          <tr>
+            <td>Price</td>
+            <td id="truthPricePred"></td>
+            <td id="truthPriceActual"></td>
+            <td><span class="diff-pill" id="truthPriceDiff"></span></td>
+          </tr>
+        </tbody>
+      </table>
+
+      <details class="raw">
+        <summary>Raw API response</summary>
+        <pre id="resultJson"></pre>
+      </details>
+    </section>
+
+    <section class="card error-card" id="errorCard" hidden>
+      <span class="icon" aria-hidden="true">⚠️</span>
+      <p><strong>Something went wrong</strong><span id="errorMessage"></span></p>
+    </section>
 
     <footer>
-      Estimate a car's manufacture year and market price from a single
-      photo, trained on the DVM-CAR dataset (academic, non-commercial use).
-      See the <a href="https://github.com/imagic9/car-price-vision" target="_blank" rel="noopener">README</a>
-      for methodology, metrics, and limitations.
+      <div class="model-card">
+        <h3>Model card</h3>
+        <dl>
+          <dt>Dataset</dt>
+          <dd>DVM-CAR, UK car adverts 2000–2021 — academic, non-commercial use only (CC BY-NC-style terms)</dd>
+          <dt>Backbone</dt>
+          <dd id="footerBackbone">ConvNeXt-Tiny, 224×224 input</dd>
+          <dt>Metrics (test split)</dt>
+          <dd id="footerMetrics">MAE 1.61 yrs · MAPE 35%</dd>
+        </dl>
+        <p class="disclaimer">Research demo, not a valuation service. Predictions can be substantially wrong, especially for rare models — see the <a href="https://github.com/imagic9/car-price-vision" target="_blank" rel="noopener">README</a> for full methodology and limitations.</p>
+      </div>
     </footer>
   </main>
 
   <script>
-    const fileInput = document.getElementById("fileInput");
-    const predictBtn = document.getElementById("predictBtn");
-    const statusEl = document.getElementById("status");
-    const dropzone = document.getElementById("dropzone");
-    const dropHint = document.getElementById("dropHint");
-    const comingSoonBanner = document.getElementById("comingSoonBanner");
-    const resultCard = document.getElementById("resultCard");
-    const resultJson = document.getElementById("resultJson");
-    const gradcamImg = document.getElementById("gradcamImg");
+    (function () {
+      "use strict";
 
-    function setEnabled(enabled) {
-      fileInput.disabled = !enabled;
-      predictBtn.disabled = !enabled;
-      dropzone.classList.toggle("enabled", enabled);
-      dropzone.classList.toggle("disabled", !enabled);
-      comingSoonBanner.style.display = enabled ? "none" : "flex";
-      dropHint.textContent = enabled
-        ? "Choose a photo of a car (JPEG/PNG)."
-        : "Waiting on the trained model…";
-    }
+      // README / results/convnext/eval_metrics.json (test split) — used
+      // whenever /health doesn't report model_info.metrics.
+      const FALLBACK_MAE_YEARS = 1.61;
+      const FALLBACK_MAPE_PERCENT = 35;
 
-    async function checkHealth() {
-      try {
-        const res = await fetch("/health");
-        const data = await res.json();
-        setEnabled(Boolean(data.model_loaded));
-      } catch (err) {
-        // If /health itself is unreachable, stay in the safe "coming soon" state.
-        setEnabled(false);
+      const isDemo = new URLSearchParams(location.search).get("demo") === "1";
+
+      // ---- element refs ----------------------------------------------
+      const comingSoonBanner = document.getElementById("comingSoonBanner");
+      const statusEl = document.getElementById("status");
+
+      const tabButtons = {
+        upload: document.getElementById("tabBtnUpload"),
+        gallery: document.getElementById("tabBtnGallery"),
+        url: document.getElementById("tabBtnUrl"),
+      };
+      const tabPanels = {
+        upload: document.getElementById("panelUpload"),
+        gallery: document.getElementById("panelGallery"),
+        url: document.getElementById("panelUrl"),
+      };
+
+      const dropzone = document.getElementById("dropzone");
+      const dropHint = document.getElementById("dropHint");
+      const fileInput = document.getElementById("fileInput");
+
+      const galleryLoading = document.getElementById("galleryLoading");
+      const galleryEmpty = document.getElementById("galleryEmpty");
+      const galleryGrid = document.getElementById("galleryGrid");
+      const shuffleBtn = document.getElementById("shuffleBtn");
+
+      const urlInput = document.getElementById("urlInput");
+      const urlPredictBtn = document.getElementById("urlPredictBtn");
+
+      const previewCard = document.getElementById("previewCard");
+      const previewImg = document.getElementById("previewImg");
+      const previewFallback = document.getElementById("previewFallback");
+      const skeletonOverlay = document.getElementById("skeletonOverlay");
+
+      const resultCard = document.getElementById("resultCard");
+      const demoBadge = document.getElementById("demoBadge");
+      const yearValue = document.getElementById("yearValue");
+      const yearError = document.getElementById("yearError");
+      const priceValue = document.getElementById("priceValue");
+      const priceError = document.getElementById("priceError");
+      const resultPhotoImg = document.getElementById("resultPhotoImg");
+      const resultGradcamImg = document.getElementById("resultGradcamImg");
+      const truthTable = document.getElementById("truthTable");
+      const truthYearPred = document.getElementById("truthYearPred");
+      const truthYearActual = document.getElementById("truthYearActual");
+      const truthYearDiff = document.getElementById("truthYearDiff");
+      const truthPricePred = document.getElementById("truthPricePred");
+      const truthPriceActual = document.getElementById("truthPriceActual");
+      const truthPriceDiff = document.getElementById("truthPriceDiff");
+      const resultJson = document.getElementById("resultJson");
+
+      const errorCard = document.getElementById("errorCard");
+      const errorMessage = document.getElementById("errorMessage");
+
+      const footerBackbone = document.getElementById("footerBackbone");
+      const footerMetrics = document.getElementById("footerMetrics");
+
+      // ---- state ------------------------------------------------------
+      let modelReady = false;
+      let healthMetrics = null; // {mae_years, mape} if /health reported them
+      let galleryImages = [];
+      let busy = false;
+      let currentObjectUrl = null;
+
+      // ==================================================================
+      // Tabs
+      // ==================================================================
+      function selectTab(name) {
+        if (tabButtons[name].hidden) return;
+        Object.keys(tabButtons).forEach((key) => {
+          const isActive = key === name;
+          tabButtons[key].setAttribute("aria-selected", String(isActive));
+          tabPanels[key].hidden = !isActive;
+        });
+        if (name === "gallery" && galleryGrid.children.length === 0 && galleryImages.length > 0) {
+          renderGalleryGrid(pickRandom(galleryImages, 12));
+        }
       }
-    }
 
-    predictBtn.addEventListener("click", async () => {
-      const file = fileInput.files[0];
-      if (!file) {
-        statusEl.textContent = "Choose an image first.";
-        return;
+      Object.keys(tabButtons).forEach((key) => {
+        tabButtons[key].addEventListener("click", () => selectTab(key));
+      });
+
+      // ==================================================================
+      // Enable/disable the whole form while predicting or before the
+      // model is ready.
+      // ==================================================================
+      function setFormEnabled(enabled) {
+        modelReady = enabled;
+        fileInput.disabled = !enabled;
+        dropzone.classList.toggle("disabled", !enabled);
+        dropzone.setAttribute("aria-disabled", String(!enabled));
+        dropHint.textContent = enabled
+          ? "Choose a photo of a car (JPEG/PNG)."
+          : "Waiting on the trained model…";
+        comingSoonBanner.style.display = enabled ? "none" : "flex";
+
+        urlInput.disabled = !enabled || busy;
+        urlPredictBtn.disabled = !enabled || busy;
       }
 
-      predictBtn.disabled = true;
-      statusEl.textContent = "Predicting...";
-      resultCard.style.display = "none";
-      gradcamImg.style.display = "none";
+      function setBusy(isBusy) {
+        busy = isBusy;
+        fileInput.disabled = isBusy || !modelReady;
+        dropzone.classList.toggle("disabled", isBusy || !modelReady);
+        urlInput.disabled = isBusy || !modelReady;
+        urlPredictBtn.disabled = isBusy || !modelReady;
+        shuffleBtn.disabled = isBusy;
+        Array.from(galleryGrid.querySelectorAll(".thumb")).forEach((el) => { el.disabled = isBusy; });
+        skeletonOverlay.hidden = !isBusy;
+      }
 
-      const formData = new FormData();
-      formData.append("file", file);
+      // ==================================================================
+      // Preview (shown immediately, before the response comes back)
+      // ==================================================================
+      function showPreviewFromBlob(blob) {
+        if (currentObjectUrl) URL.revokeObjectURL(currentObjectUrl);
+        currentObjectUrl = URL.createObjectURL(blob);
+        previewImg.src = currentObjectUrl;
+        previewImg.hidden = false;
+        previewFallback.hidden = true;
+        previewCard.hidden = false;
+      }
 
-      try {
-        const response = await fetch("/predict", { method: "POST", body: formData });
-        const data = await response.json();
+      function showPreviewFromUrl(url) {
+        if (currentObjectUrl) { URL.revokeObjectURL(currentObjectUrl); currentObjectUrl = null; }
+        previewFallback.hidden = false;
+        previewImg.hidden = true;
+        previewCard.hidden = false;
+        // Best-effort client-side preview of the remote image (purely
+        // cosmetic; the real fetch happens server-side in /predict-url).
+        const probe = new Image();
+        probe.onload = () => {
+          previewImg.src = url;
+          previewImg.hidden = false;
+          previewFallback.hidden = true;
+        };
+        probe.onerror = () => { /* keep the fallback message */ };
+        probe.src = url;
+      }
 
-        if (!response.ok) {
-          statusEl.textContent = `Error: ${data.detail || response.statusText}`;
-          predictBtn.disabled = false;
+      // ==================================================================
+      // Health + gallery bootstrap
+      // ==================================================================
+      async function checkHealth() {
+        try {
+          const res = await fetch("/health");
+          const data = await res.json();
+          setFormEnabled(Boolean(data.model_loaded));
+          if (data.model_info) {
+            if (data.model_info.backbone || data.model_info.img_size) {
+              const parts = [];
+              if (data.model_info.backbone) parts.push(data.model_info.backbone);
+              if (data.model_info.img_size) parts.push(`${data.model_info.img_size}×${data.model_info.img_size} input`);
+              footerBackbone.textContent = parts.join(", ");
+            }
+            const m = data.model_info.metrics;
+            if (m && typeof m === "object") {
+              const mae = m.mae_years ?? m.maeYears;
+              const mape = m.mape ?? m.mape_percent;
+              if (typeof mae === "number" || typeof mape === "number") {
+                healthMetrics = { mae_years: mae, mape: mape };
+                const bits = [];
+                if (typeof mae === "number") bits.push(`MAE ${mae.toFixed(2)} yrs`);
+                if (typeof mape === "number") bits.push(`MAPE ${mape.toFixed(1)}%`);
+                footerMetrics.textContent = bits.join(" · ") + " (reported by the server)";
+              }
+            }
+          }
+        } catch (err) {
+          setFormEnabled(false);
+        }
+      }
+
+      async function loadGallery() {
+        try {
+          const res = await fetch("/gallery");
+          const data = await res.json();
+          galleryImages = Array.isArray(data.images) ? data.images : [];
+        } catch (err) {
+          galleryImages = [];
+        }
+        galleryLoading.hidden = true;
+        if (galleryImages.length === 0) {
+          galleryEmpty.hidden = false;
+          tabButtons.gallery.hidden = true; // hide the tab entirely, per spec
+        } else {
+          galleryEmpty.hidden = true;
+          tabButtons.gallery.hidden = false;
+          renderGalleryGrid(pickRandom(galleryImages, 12));
+        }
+      }
+
+      function pickRandom(arr, n) {
+        const copy = arr.slice();
+        for (let i = copy.length - 1; i > 0; i--) {
+          const j = Math.floor(Math.random() * (i + 1));
+          [copy[i], copy[j]] = [copy[j], copy[i]];
+        }
+        return copy.slice(0, Math.min(n, copy.length));
+      }
+
+      function renderGalleryGrid(items) {
+        galleryGrid.innerHTML = "";
+        items.forEach((item) => {
+          const btn = document.createElement("button");
+          btn.type = "button";
+          btn.className = "thumb";
+          btn.disabled = busy;
+          const label = [item.brand, item.model].filter(Boolean).join(" ");
+          btn.setAttribute("aria-label", `Predict for ${label || item.file}`);
+
+          const img = document.createElement("img");
+          img.src = `/static/gallery/images/${encodeURIComponent(item.file)}`;
+          img.alt = "";
+          img.loading = "lazy";
+          btn.appendChild(img);
+
+          const caption = document.createElement("span");
+          caption.className = "thumb-caption";
+          caption.textContent = label || item.file;
+          btn.appendChild(caption);
+
+          btn.addEventListener("click", () => predictGalleryItem(item));
+          galleryGrid.appendChild(btn);
+        });
+      }
+
+      shuffleBtn.addEventListener("click", () => {
+        if (galleryImages.length === 0) return;
+        renderGalleryGrid(pickRandom(galleryImages, 12));
+      });
+
+      // ==================================================================
+      // Upload tab: click / drag&drop / paste
+      // ==================================================================
+      dropzone.addEventListener("click", () => { if (modelReady && !busy) fileInput.click(); });
+      dropzone.addEventListener("keydown", (e) => {
+        if ((e.key === "Enter" || e.key === " ") && modelReady && !busy) {
+          e.preventDefault();
+          fileInput.click();
+        }
+      });
+      fileInput.addEventListener("change", () => {
+        const file = fileInput.files[0];
+        if (file) predictFile(file, null);
+      });
+
+      ["dragenter", "dragover"].forEach((evt) => {
+        dropzone.addEventListener(evt, (e) => {
+          e.preventDefault();
+          if (modelReady && !busy) dropzone.classList.add("dragover");
+        });
+      });
+      ["dragleave", "drop"].forEach((evt) => {
+        dropzone.addEventListener(evt, (e) => {
+          e.preventDefault();
+          dropzone.classList.remove("dragover");
+        });
+      });
+      dropzone.addEventListener("drop", (e) => {
+        if (!modelReady || busy) return;
+        const file = e.dataTransfer.files && e.dataTransfer.files[0];
+        if (file) predictFile(file, null);
+      });
+
+      window.addEventListener("paste", (e) => {
+        if (!modelReady || busy) return;
+        const items = e.clipboardData && e.clipboardData.items;
+        if (!items) return;
+        for (const item of items) {
+          if (item.type && item.type.startsWith("image/")) {
+            const file = item.getAsFile();
+            if (file) {
+              selectTab("upload");
+              predictFile(file, null);
+            }
+            break;
+          }
+        }
+      });
+
+      // ==================================================================
+      // Predicting
+      // ==================================================================
+      function friendlyErrorFor(status, detail) {
+        if (status === 503) return "The model isn't loaded on the server yet. Try again later.";
+        if (status === 400 || status === 422) return detail || "That image (or URL) couldn't be used. Please try another.";
+        return "The request failed. Please try again in a moment.";
+      }
+
+      async function predictFile(file, groundTruth) {
+        showPreviewFromBlob(file);
+        resultCard.hidden = true;
+        errorCard.hidden = true;
+        statusEl.textContent = "Predicting…";
+        setBusy(true);
+
+        const formData = new FormData();
+        formData.append("file", file);
+
+        try {
+          const response = await fetch("/predict", { method: "POST", body: formData });
+          const data = await response.json();
+          if (!response.ok) {
+            showError(friendlyErrorFor(response.status, data.detail));
+          } else {
+            renderResult(data, { originalSrc: currentObjectUrl, groundTruth });
+          }
+        } catch (err) {
+          showError("Could not reach the server. Check your connection and try again.");
+        } finally {
+          setBusy(false);
+          statusEl.textContent = "";
+        }
+      }
+
+      async function predictGalleryItem(item) {
+        statusEl.textContent = "Fetching sample photo…";
+        try {
+          const imgRes = await fetch(`/static/gallery/images/${encodeURIComponent(item.file)}`);
+          const blob = await imgRes.blob();
+          await predictFile(blob, item);
+        } catch (err) {
+          showError("Could not load that sample photo. Please try another.");
+          statusEl.textContent = "";
+        }
+      }
+
+      urlPredictBtn.addEventListener("click", async () => {
+        const url = urlInput.value.trim();
+        if (!url) {
+          statusEl.textContent = "Paste an image URL first.";
           return;
         }
+        showPreviewFromUrl(url);
+        resultCard.hidden = true;
+        errorCard.hidden = true;
+        statusEl.textContent = "Downloading & predicting…";
+        setBusy(true);
 
-        // Show the JSON response, but keep the (possibly large) base64 image
-        // out of the printed block for readability.
-        const { gradcam_png_base64, ...displayData } = data;
-        resultJson.textContent = JSON.stringify(displayData, null, 2);
-        resultCard.style.display = "block";
+        try {
+          const response = await fetch("/predict-url", {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ url }),
+          });
+          const data = await response.json();
+          if (!response.ok) {
+            showError(friendlyErrorFor(response.status, data.detail));
+          } else {
+            renderResult(data, { originalSrc: previewImg.hidden ? null : url, groundTruth: null });
+          }
+        } catch (err) {
+          showError("Could not reach the server. Check your connection and try again.");
+        } finally {
+          setBusy(false);
+          statusEl.textContent = "";
+        }
+      });
 
-        if (gradcam_png_base64) {
-          gradcamImg.src = `data:image/png;base64,${gradcam_png_base64}`;
-          gradcamImg.style.display = "block";
+      // ==================================================================
+      // Rendering the result
+      // ==================================================================
+      function fmtPrice(value) {
+        return "£" + Math.round(value).toLocaleString("en-GB");
+      }
+
+      function diffPill(el, diff, closeThreshold, formatFn) {
+        const sign = diff > 0 ? "+" : "";
+        el.textContent = `${sign}${formatFn(diff)}`;
+        el.classList.toggle("close", Math.abs(diff) <= closeThreshold);
+      }
+
+      function renderResult(data, meta) {
+        errorCard.hidden = true;
+        resultCard.hidden = false;
+        demoBadge.hidden = !isDemo;
+
+        yearValue.textContent = String(data.year);
+        priceValue.textContent = fmtPrice(data.price_gbp);
+
+        const maeYears = (healthMetrics && typeof healthMetrics.mae_years === "number") ? healthMetrics.mae_years : FALLBACK_MAE_YEARS;
+        const mape = (healthMetrics && typeof healthMetrics.mape === "number") ? healthMetrics.mape : FALLBACK_MAPE_PERCENT;
+        yearError.textContent = `typical error ±${maeYears.toFixed(2)} yrs`;
+        priceError.textContent = `typical error ±${Math.round(mape)}%`;
+
+        if (meta && meta.originalSrc) {
+          resultPhotoImg.src = meta.originalSrc;
+          resultPhotoImg.hidden = false;
+        } else {
+          resultPhotoImg.hidden = true;
         }
 
-        statusEl.textContent = "Done.";
-      } catch (err) {
-        statusEl.textContent = `Request failed: ${err}`;
-      } finally {
-        predictBtn.disabled = false;
-      }
-    });
+        if (data.gradcam_png_base64) {
+          resultGradcamImg.src = `data:image/png;base64,${data.gradcam_png_base64}`;
+          resultGradcamImg.hidden = false;
+        } else if (isDemo) {
+          resultGradcamImg.src = DEMO_GRADCAM_DATA_URI;
+          resultGradcamImg.hidden = false;
+        } else {
+          resultGradcamImg.hidden = true;
+        }
 
-    setEnabled(false);
-    checkHealth();
+        if (meta && meta.groundTruth) {
+          const gt = meta.groundTruth;
+          truthTable.hidden = false;
+          truthYearPred.textContent = String(data.year);
+          truthYearActual.textContent = String(gt.true_year);
+          diffPill(truthYearDiff, data.year - gt.true_year, Math.ceil(maeYears), (d) => `${d} yr${Math.abs(d) === 1 ? "" : "s"}`);
+
+          truthPricePred.textContent = fmtPrice(data.price_gbp);
+          truthPriceActual.textContent = fmtPrice(gt.true_price_gbp);
+          const pctDiff = gt.true_price_gbp ? ((data.price_gbp - gt.true_price_gbp) / gt.true_price_gbp) * 100 : 0;
+          diffPill(truthPriceDiff, pctDiff, mape, (d) => `${d.toFixed(0)}%`);
+        } else {
+          truthTable.hidden = true;
+        }
+
+        // Keep the (possibly large) base64 Grad-CAM image out of the raw
+        // JSON block for readability -- it's already shown above.
+        const { gradcam_png_base64, ...displayData } = data;
+        const rawForDisplay = gradcam_png_base64
+          ? { ...displayData, gradcam_png_base64: "<omitted — shown above>" }
+          : displayData;
+        resultJson.textContent = JSON.stringify(rawForDisplay, null, 2);
+
+        previewCard.hidden = true;
+      }
+
+      function showError(message) {
+        resultCard.hidden = true;
+        previewCard.hidden = true;
+        errorCard.hidden = false;
+        errorMessage.textContent = " " + message;
+      }
+
+      // ==================================================================
+      // Demo mode (?demo=1): fully inert unless the query param is set.
+      // Renders one hardcoded fake result so layout can be checked without
+      // a trained model.
+      // ==================================================================
+      const DEMO_PHOTO_DATA_URI = "data:image/svg+xml;utf8," + encodeURIComponent(
+        "<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 400 300'>" +
+        "<rect width='400' height='300' fill='#dedad2'/>" +
+        "<rect x='0' y='210' width='400' height='90' fill='#c7c2b7'/>" +
+        "<path fill='#8a3a24' d='M40 210 L60 150 Q70 120 110 120 L150 120 L185 85 Q198 72 220 72 L290 72 Q315 72 328 95 L355 145 L378 152 Q392 158 392 178 L392 210 Z'/>" +
+        "<rect x='40' y='202' width='352' height='22' rx='8' fill='#8a3a24'/>" +
+        "<circle cx='118' cy='222' r='30' fill='#241a12'/><circle cx='118' cy='222' r='12' fill='#dedad2'/>" +
+        "<circle cx='300' cy='222' r='30' fill='#241a12'/><circle cx='300' cy='222' r='12' fill='#dedad2'/>" +
+        "<path fill='#eef0ee' opacity='0.75' d='M188 90 L215 90 Q222 90 222 100 L222 118 L165 118 Z'/>" +
+        "<path fill='#eef0ee' opacity='0.75' d='M230 90 L282 90 Q296 90 304 104 L322 118 L230 118 Z'/>" +
+        "</svg>"
+      );
+      const DEMO_GRADCAM_DATA_URI = "data:image/svg+xml;utf8," + encodeURIComponent(
+        "<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 400 300'>" +
+        "<defs><radialGradient id='hot' cx='32%' cy='75%' r='45%'>" +
+        "<stop offset='0%' stop-color='#ffe14d' stop-opacity='0.95'/>" +
+        "<stop offset='45%' stop-color='#ff7a1a' stop-opacity='0.7'/>" +
+        "<stop offset='100%' stop-color='#b5472b' stop-opacity='0'/>" +
+        "</radialGradient>" +
+        "<radialGradient id='hot2' cx='75%' cy='75%' r='35%'>" +
+        "<stop offset='0%' stop-color='#ffe14d' stop-opacity='0.85'/>" +
+        "<stop offset='50%' stop-color='#ff7a1a' stop-opacity='0.5'/>" +
+        "<stop offset='100%' stop-color='#b5472b' stop-opacity='0'/>" +
+        "</radialGradient></defs>" +
+        "<rect width='400' height='300' fill='#dedad2'/>" +
+        "<rect x='0' y='210' width='400' height='90' fill='#c7c2b7'/>" +
+        "<path fill='#8a3a24' d='M40 210 L60 150 Q70 120 110 120 L150 120 L185 85 Q198 72 220 72 L290 72 Q315 72 328 95 L355 145 L378 152 Q392 158 392 178 L392 210 Z'/>" +
+        "<rect x='40' y='202' width='352' height='22' rx='8' fill='#8a3a24'/>" +
+        "<circle cx='118' cy='222' r='30' fill='#241a12'/><circle cx='300' cy='222' r='30' fill='#241a12'/>" +
+        "<rect width='400' height='300' fill='url(#hot)'/>" +
+        "<rect width='400' height='300' fill='url(#hot2)'/>" +
+        "</svg>"
+      );
+
+      function renderDemo() {
+        setFormEnabled(false); // demo mode never touches a real backend
+        comingSoonBanner.style.display = "none";
+        const demoResult = {
+          year: 2016,
+          year_confidence_interval: null,
+          price_gbp: 12450,
+          price_confidence_interval: null,
+          gradcam_png_base64: null,
+          backend: "torch",
+          note: "This is a hardcoded demo render for layout QA — no model was run.",
+        };
+        const demoGroundTruth = { true_year: 2015, true_price_gbp: 11200, brand: "Ford", model: "Focus" };
+        previewCard.hidden = true;
+        renderResult(demoResult, { originalSrc: DEMO_PHOTO_DATA_URI, groundTruth: demoGroundTruth });
+      }
+
+      // ==================================================================
+      // Init
+      // ==================================================================
+      setFormEnabled(false);
+      checkHealth();
+      loadGallery();
+      if (isDemo) renderDemo();
+    })();
   </script>
 </body>
 </html>
