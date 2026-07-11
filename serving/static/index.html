@@ -428,6 +428,19 @@
       margin-top: 0.4rem;
       text-align: center;
     }
+    .photo-fallback-note {
+      font-size: 0.78rem;
+      color: var(--muted);
+      text-align: center;
+      padding: 1rem 0.5rem;
+      margin: 0;
+      background: var(--code-bg);
+      border-radius: 8px;
+      aspect-ratio: 4 / 3;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+    }
     .gradcam-caption {
       font-size: 0.85rem;
       color: var(--muted);
@@ -466,6 +479,15 @@
     }
     .diff-pill.close { background: var(--accent-soft); color: var(--accent); }
 
+    .multi-photo-note {
+      font-size: 0.85rem;
+      color: var(--muted);
+      background: var(--accent-soft);
+      border-radius: 8px;
+      padding: 0.5rem 0.75rem;
+      margin: 0 0 1rem;
+    }
+
     details.raw {
       margin-top: 0.5rem;
       font-size: 0.85rem;
@@ -475,6 +497,38 @@
       color: var(--muted);
       font-weight: 600;
       padding: 0.3rem 0;
+    }
+    .per-photo-list {
+      list-style: none;
+      margin: 0.4rem 0 0;
+      padding: 0;
+      display: flex;
+      flex-direction: column;
+      gap: 0.4rem;
+    }
+    .per-photo-list li {
+      display: flex;
+      justify-content: space-between;
+      gap: 0.75rem;
+      padding: 0.45rem 0.6rem;
+      background: var(--code-bg);
+      border-radius: 6px;
+      font-size: 0.82rem;
+    }
+    .per-photo-list .per-photo-name {
+      color: var(--muted);
+      overflow: hidden;
+      text-overflow: ellipsis;
+      white-space: nowrap;
+    }
+    .per-photo-list .per-photo-values {
+      flex: none;
+      font-weight: 600;
+    }
+    .per-photo-list li.is-representative .per-photo-name::after {
+      content: " (shown above)";
+      font-weight: 600;
+      color: var(--accent);
     }
     pre {
       background: var(--code-bg);
@@ -586,10 +640,10 @@
 
       <div class="tab-panel" id="panelUrl" role="tabpanel" aria-labelledby="tabBtnUrl" hidden>
         <div class="url-row">
-          <input type="text" id="urlInput" placeholder="https://example.com/car-photo.jpg" disabled aria-label="Image URL" />
+          <input type="text" id="urlInput" placeholder="https://example.com/car-photo.jpg or a listing page URL" disabled aria-label="Image or listing page URL" />
           <button class="primary" id="urlPredictBtn" disabled type="button">Fetch &amp; Predict</button>
         </div>
-        <p class="field-hint">The image is downloaded server-side before prediction — nothing is fetched from your browser.</p>
+        <p class="field-hint">Paste a direct photo URL, or a car advert/listing page URL (e.g. auto.ria.com, mobile.de, autoscout24) — the server will pull its photos and average the prediction across them. Everything is downloaded server-side; nothing is fetched from your browser.</p>
       </div>
 
       <div class="actions">
@@ -610,6 +664,7 @@
     <section class="card" id="resultCard" hidden>
       <span class="demo-badge" id="demoBadge" hidden>Demo render</span>
       <h2>Result</h2>
+      <p class="multi-photo-note" id="multiPhotoNote" hidden></p>
 
       <div class="stat-grid">
         <div class="stat-card">
@@ -628,6 +683,7 @@
         <div class="photo-pane">
           <figure>
             <img id="resultPhotoImg" alt="Uploaded car photo" />
+            <p class="photo-fallback-note" id="resultPhotoFallback" hidden>Photo preview unavailable (the source site blocks external embedding) — the prediction above is unaffected.</p>
             <figcaption>Original photo</figcaption>
           </figure>
         </div>
@@ -660,6 +716,11 @@
           </tr>
         </tbody>
       </table>
+
+      <details class="raw" id="perPhotoDetails" hidden>
+        <summary id="perPhotoSummary">Per-photo predictions</summary>
+        <ul class="per-photo-list" id="perPhotoList"></ul>
+      </details>
 
       <details class="raw">
         <summary>Raw API response</summary>
@@ -738,6 +799,7 @@
       const priceValue = document.getElementById("priceValue");
       const priceError = document.getElementById("priceError");
       const resultPhotoImg = document.getElementById("resultPhotoImg");
+      const resultPhotoFallback = document.getElementById("resultPhotoFallback");
       const resultGradcamImg = document.getElementById("resultGradcamImg");
       const truthTable = document.getElementById("truthTable");
       const truthYearPred = document.getElementById("truthYearPred");
@@ -747,6 +809,10 @@
       const truthPriceActual = document.getElementById("truthPriceActual");
       const truthPriceDiff = document.getElementById("truthPriceDiff");
       const resultJson = document.getElementById("resultJson");
+      const multiPhotoNote = document.getElementById("multiPhotoNote");
+      const perPhotoDetails = document.getElementById("perPhotoDetails");
+      const perPhotoSummary = document.getElementById("perPhotoSummary");
+      const perPhotoList = document.getElementById("perPhotoList");
 
       const errorCard = document.getElementById("errorCard");
       const errorMessage = document.getElementById("errorMessage");
@@ -1048,7 +1114,14 @@
           if (!response.ok) {
             showError(friendlyErrorFor(response.status, data.detail));
           } else {
-            renderResult(data, { originalSrc: previewImg.hidden ? null : url, groundTruth: null });
+            renderResult(data, {
+              originalSrc: previewImg.hidden ? null : url,
+              groundTruth: null,
+              // For an advert-page result, prefer showing the representative
+              // photo (the one the median/Grad-CAM is actually based on)
+              // over the raw pasted page URL.
+              representativePhotoUrl: data.representative_photo_url || null,
+            });
           }
         } catch (err) {
           showError("Could not reach the server. Check your connection and try again.");
@@ -1071,6 +1144,73 @@
         el.classList.toggle("close", Math.abs(diff) <= closeThreshold);
       }
 
+      // Best-effort basename for the per-photo list -- these URLs come from
+      // an arbitrary advert page, so this is purely cosmetic (falls back to
+      // the full URL if it can't be parsed).
+      function urlBasename(url) {
+        try {
+          const parsed = new URL(url);
+          const segments = parsed.pathname.split("/").filter(Boolean);
+          return segments.length ? decodeURIComponent(segments[segments.length - 1]) : url;
+        } catch (err) {
+          return url;
+        }
+      }
+
+      // Shows `url` in the "Original photo" pane, fetched client-side purely
+      // for display (the real, already-completed prediction happened
+      // server-side). Some sites hotlink-protect their images -- if the
+      // browser can't load it, fall back to a neutral placeholder note
+      // instead of a broken image icon.
+      function showResultPhoto(url) {
+        resultPhotoImg.onload = null;
+        resultPhotoImg.onerror = null;
+        if (!url) {
+          resultPhotoImg.hidden = true;
+          resultPhotoImg.removeAttribute("src");
+          resultPhotoFallback.hidden = true;
+          return;
+        }
+        resultPhotoFallback.hidden = true;
+        resultPhotoImg.onload = () => {
+          resultPhotoImg.hidden = false;
+          resultPhotoFallback.hidden = true;
+        };
+        resultPhotoImg.onerror = () => {
+          resultPhotoImg.hidden = true;
+          resultPhotoImg.removeAttribute("src");
+          resultPhotoFallback.hidden = false;
+        };
+        resultPhotoImg.src = url;
+      }
+
+      function renderPerPhotoList(perPhoto, representativeUrl) {
+        perPhotoList.innerHTML = "";
+        if (!perPhoto || perPhoto.length === 0) {
+          perPhotoDetails.hidden = true;
+          return;
+        }
+        perPhotoSummary.textContent = `Per-photo predictions (${perPhoto.length})`;
+        perPhoto.forEach((p) => {
+          const li = document.createElement("li");
+          if (representativeUrl && p.url === representativeUrl) li.classList.add("is-representative");
+
+          const name = document.createElement("span");
+          name.className = "per-photo-name";
+          name.textContent = urlBasename(p.url);
+          name.title = p.url;
+
+          const values = document.createElement("span");
+          values.className = "per-photo-values";
+          values.textContent = `${p.year} · ${fmtPrice(p.price_gbp)}`;
+
+          li.appendChild(name);
+          li.appendChild(values);
+          perPhotoList.appendChild(li);
+        });
+        perPhotoDetails.hidden = false;
+      }
+
       function renderResult(data, meta) {
         errorCard.hidden = true;
         resultCard.hidden = false;
@@ -1084,12 +1224,21 @@
         yearError.textContent = `typical error ±${maeYears.toFixed(2)} yrs`;
         priceError.textContent = `typical error ±${Math.round(mape)}%`;
 
-        if (meta && meta.originalSrc) {
-          resultPhotoImg.src = meta.originalSrc;
-          resultPhotoImg.hidden = false;
+        const isMultiPhoto = typeof data.photos_used === "number" && data.photos_used > 1;
+        if (isMultiPhoto) {
+          multiPhotoNote.hidden = false;
+          multiPhotoNote.textContent = `Analyzed ${data.photos_used} photos from the advert (median result).`;
         } else {
-          resultPhotoImg.hidden = true;
+          multiPhotoNote.hidden = true;
         }
+
+        // Advert-page results show the representative photo (the one the
+        // median/Grad-CAM is actually based on); direct-image requests show
+        // whatever the caller already resolved as the original photo.
+        const photoToShow = (meta && meta.representativePhotoUrl) || (meta && meta.originalSrc) || null;
+        showResultPhoto(photoToShow);
+
+        renderPerPhotoList(data.per_photo, data.representative_photo_url);
 
         if (data.gradcam_png_base64) {
           resultGradcamImg.src = `data:image/png;base64,${data.gradcam_png_base64}`;
