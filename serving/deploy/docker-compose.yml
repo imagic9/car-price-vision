@@ -40,6 +40,8 @@ services:
       # on container restart -- no image rebuild needed.
       - CPV_ONNX_MODEL_PATH=/models/model.onnx
       - CPV_TORCH_CHECKPOINT_PATH=/models/model.pt
+      # De-standardization constants + backbone/img_size (single source of truth).
+      - CPV_MODEL_META=/models/model_meta.json
     networks:
       - car-net
 
