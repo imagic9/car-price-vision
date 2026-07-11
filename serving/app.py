@@ -273,6 +273,16 @@ _JSONLD_YEAR_KEYS = ("vehicleModelDate", "productionDate", "releaseDate", "dateV
 # €->EUR, £->GBP is encoded per-pattern. Bounded quantifiers ({3,12}) keep
 # a match from swallowing arbitrarily long digit runs.
 _TEXT_PRICE_PATTERNS: list[tuple[re.Pattern[str], Optional[str]]] = [
+    # Embedded page-state keys like `"priceUSD":10000` / `priceUAH\":445900`
+    # (auto.ria and similar marketplaces ship the asking price in inlined
+    # JS state) -- the most precise text-level marker we scan for.
+    (re.compile(r"priceUSD\\?[\"']?\s*[:=]\s*\\?[\"']?(\d{2,9})"), "USD"),
+    (re.compile(r"priceEUR\\?[\"']?\s*[:=]\s*\\?[\"']?(\d{2,9})"), "EUR"),
+    (re.compile(r"priceUAH\\?[\"']?\s*[:=]\s*\\?[\"']?(\d{2,9})"), "UAH"),
+    (re.compile(r"priceGBP\\?[\"']?\s*[:=]\s*\\?[\"']?(\d{2,9})"), "GBP"),
+    # Suffix form "10 000 $" (nbsp thousand separators) -- the usual
+    # Ukrainian/European marketplace rendering, symbol AFTER the amount.
+    (re.compile(r"(\d[\d  ,]{0,11})\s?\$"), "USD"),
     (re.compile(r"\$\s?([\d  ,]{1,12}\d)"), "USD"),
     (re.compile(r"(\d[\d  ,]{0,11})\s?(?:грн|₴)"), "UAH"),
     (re.compile(r"€\s?([\d  .,]{1,12}\d)"), "EUR"),

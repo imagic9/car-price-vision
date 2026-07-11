@@ -253,3 +253,29 @@ def test_to_gbp_missing_inputs_return_none(fallback_rates):
 
 def test_rate_source_reports_fallback_for_primed_cache(fallback_rates):
     assert currency.get_rate_source() == "fallback"
+
+
+# ---- marketplace formats added after live-testing against auto.ria ----
+
+
+def test_text_fallback_suffix_dollar_nbsp():
+    """Ukrainian/European rendering puts the symbol AFTER the amount with
+    NBSP thousand separators: '10\xa0000 $'."""
+    html = "<html><body>ціна 10\xa0000 $ за авто</body></html>"
+    facts = extract_advert_facts_from_html(html)
+    assert facts["price"] == 10000.0
+    assert facts["currency"] == "USD"
+
+
+def test_text_fallback_embedded_state_price_keys():
+    """Marketplaces inline the asking price in JS state: '"priceUSD":10000'
+    (also the JSON-escaped variant 'priceUAH\\":445900')."""
+    html = '<html><body><script>window.state={"priceUSD":10000,"priceUAH":445900}</script></body></html>'
+    facts = extract_advert_facts_from_html(html)
+    assert facts["price"] == 10000.0
+    assert facts["currency"] == "USD"
+
+    html_escaped = "<html><body><script>x=\"{\\\"priceUAH\\\":445900}\"</script></body></html>"
+    facts = extract_advert_facts_from_html(html_escaped)
+    assert facts["price"] == 445900.0
+    assert facts["currency"] == "UAH"
