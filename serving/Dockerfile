@@ -29,6 +29,7 @@ COPY src /app/src
 RUN pip install --no-cache-dir --no-deps -e .
 
 COPY serving/app.py /app/serving/app.py
+COPY serving/currency.py /app/serving/currency.py
 COPY serving/static /app/serving/static
 
 # TODO(phase 4): COPY the exported model artifact(s) in, or mount them at
