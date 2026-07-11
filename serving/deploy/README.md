@@ -1,15 +1,18 @@
 # Deployment runbook — car-price-vision demo
 
-Public demo target: **https://cars.pricevision.app** (primary since
-2026-07-11; the original **https://aetherkin.space** apex remains a live
-alias), served via a **Cloudflare Tunnel** to a FastAPI container on the
-deployment VPS. No reverse-proxy involvement, no open inbound ports on the
-VPS for this stack. Both hostnames route through the same tunnel: each is an
-ingress rule in the tunnel's remote (dashboard/API-managed) config plus a
-proxied CNAME to `<tunnel-id>.cfargotunnel.com` in its zone — adding another
-domain later needs exactly those two steps and nothing on the VPS.
+Public demo target: **https://cars.pricevision.app** (the sole public
+hostname since 2026-07-11; the original aetherkin.space apex was
+decommissioned the same day — its tunnel ingress rule and CNAME were
+removed, mail MX/SPF records left untouched), served via a **Cloudflare
+Tunnel** to a FastAPI container on the deployment VPS. No reverse-proxy
+involvement, no open inbound ports on the VPS for this stack. A hostname is
+two pieces of remote config and nothing on the VPS: an ingress rule in the
+tunnel's dashboard/API-managed config plus a proxied CNAME to
+`<tunnel-id>.cfargotunnel.com` in the hostname's zone.
 
-The rest of this runbook documents the original aetherkin.space bring-up.
+The rest of this runbook documents the original bring-up (written when the
+demo lived at aetherkin.space — substitute cars.pricevision.app when
+re-tracing it).
 
 The model does not exist yet. The site goes live now as a "coming soon"
 placeholder (see `../static/index.html`); the FastAPI app runs and reports
